@@ -1,52 +1,106 @@
 <template>
   <div class="space-y-4">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <input v-model="search" type="search" placeholder="Search parts…" class="form-input w-64" @input="debouncedFetch" />
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div class="flex items-center gap-2 flex-wrap">
+        <input v-model="search" type="search" placeholder="Search parts…" class="form-input w-56" @input="debouncedFetch" />
         <SearchableSelect v-model="partCategoryFilter" :options="partCategories"
-          placeholder="All categories" class="w-44" @update:modelValue="fetchProducts" />
+          placeholder="All categories" class="w-40" @update:modelValue="onFilterChange" />
         <SearchableSelect v-model="vehicleTypeFilter" :options="vehicleTypes"
-          placeholder="All vehicles" class="w-36" @update:modelValue="fetchProducts" />
+          placeholder="All vehicles" class="w-32" @update:modelValue="onFilterChange" />
+        <SearchableSelect v-model="brandFilter" :options="brands"
+          placeholder="All brands" class="w-32" @update:modelValue="onFilterChange" />
+        <SearchableSelect v-model="modelFilter" :options="vehicleModels"
+          placeholder="All models" class="w-32" @update:modelValue="onFilterChange" />
         <label class="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
-          <input type="checkbox" v-model="lowStockOnly" @change="fetchProducts" class="rounded text-blue-600" />
+          <input type="checkbox" v-model="lowStockOnly" @change="onFilterChange" class="rounded text-blue-600" />
           Low stock only
         </label>
+        <button v-if="hasActiveFilter" @click="clearFilters"
+          class="text-xs text-gray-500 hover:text-red-600 underline whitespace-nowrap">Clear filters</button>
       </div>
-      <button @click="openCreate" class="btn-primary flex items-center gap-2">
-        <PlusIcon class="w-4 h-4" /> Add Part
-      </button>
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Pagination -->
+        <span class="text-xs text-gray-400 mr-1">{{ products.from }}–{{ products.to }} of {{ products.total }}</span>
+        <button @click="goPage(1)" :disabled="page <= 1"
+          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
+        <button @click="goPage(page - 1)" :disabled="page <= 1"
+          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
+        <template v-for="pg in pageNumbers" :key="pg">
+          <span v-if="pg === '...'" class="px-1 text-gray-400 text-xs select-none">…</span>
+          <button v-else @click="goPage(pg)"
+            :class="pg === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:bg-gray-100 text-gray-700'"
+            class="min-w-[28px] px-2 py-1 rounded text-xs border">{{ pg }}</button>
+        </template>
+        <button @click="goPage(page + 1)" :disabled="page >= products.last_page"
+          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+        <button @click="goPage(products.last_page)" :disabled="page >= products.last_page"
+          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
+        <button @click="openCreate" class="btn-primary flex items-center gap-2 ml-2">
+          <PlusIcon class="w-4 h-4" /> Add Part
+        </button>
+      </div>
     </div>
 
     <!-- Table -->
     <div class="card p-0 overflow-hidden">
-      <div class="overflow-x-auto">
+      <!-- Loader -->
+      <div v-if="loading" class="flex items-center justify-center py-16">
+        <svg class="w-8 h-8 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+      </div>
+      <div v-else class="overflow-x-auto">
         <table class="w-full">
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th class="table-th">Part Number</th>
               <th class="table-th">Part Name</th>
-              <th class="table-th">Part Category</th>
               <th class="table-th">Vehicle / Brand / Model</th>
               <th class="table-th">Quality</th>
               <th class="table-th">Rack</th>
               <th class="table-th">Stock</th>
-              <th class="table-th">Buy Price</th>
-              <th class="table-th">Sell Price</th>
+              <th class="table-th">Price</th>
               <th class="table-th">Status</th>
               <th class="table-th">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
-            <tr v-for="p in products.data" :key="p.id" class="hover:bg-gray-50">
-              <td class="table-td font-mono text-xs">{{ p.part_number }}</td>
+            <template v-if="loading">
+              <tr v-for="n in 8" :key="n" class="animate-pulse">
+                <td class="table-td"><div class="h-3 bg-gray-200 rounded w-20"></div></td>
+                <td class="table-td">
+                  <div class="space-y-1.5">
+                    <div class="h-3 bg-gray-200 rounded w-36"></div>
+                    <div class="h-2.5 bg-gray-100 rounded w-24"></div>
+                  </div>
+                </td>
+                <td class="table-td"><div class="h-3 bg-gray-200 rounded w-28"></div></td>
+                <td class="table-td"><div class="h-3 bg-gray-200 rounded w-16"></div></td>
+                <td class="table-td"><div class="h-3 bg-gray-200 rounded w-12"></div></td>
+                <td class="table-td"><div class="h-5 bg-gray-200 rounded-full w-10"></div></td>
+                <td class="table-td">
+                  <div class="space-y-1.5">
+                    <div class="h-3 bg-gray-200 rounded w-20"></div>
+                    <div class="h-2.5 bg-gray-100 rounded w-16"></div>
+                  </div>
+                </td>
+                <td class="table-td"><div class="h-5 bg-gray-200 rounded-full w-14"></div></td>
+                <td class="table-td"><div class="h-7 bg-gray-200 rounded w-32"></div></td>
+              </tr>
+            </template>
+            <tr v-else v-for="p in products.data" :key="p.id" class="hover:bg-gray-50">
+              <td class="table-td">
+                <div class="font-mono text-xs">{{ p.part_number || '—' }}</div>
+                <div v-if="p.part_category" class="text-[10px] text-gray-400 mt-0.5">{{ p.part_category.name }}</div>
+              </td>
               <td class="table-td">
                 <div>
                   <span class="font-medium line-clamp-2">{{ p.name }}</span>
                   <p v-if="p.image" class="text-xs text-gray-400 font-mono">{{ p.image.split('/').pop() }}</p>
                 </div>
               </td>
-              <td class="table-td text-gray-500">{{ p.part_category?.name || '—' }}</td>
               <td class="table-td text-xs text-gray-600">
                 <span v-if="p.vehicle_type">{{ p.vehicle_type.name }}</span>
                 <span v-if="p.brand"> · {{ p.brand.name }}</span>
@@ -60,8 +114,10 @@
                   {{ p.stock_quantity }}
                 </span>
               </td>
-              <td class="table-td">LKR {{ Number(p.purchase_price).toLocaleString() }}</td>
-              <td class="table-td font-semibold text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</td>
+              <td class="table-td">
+                <div class="font-semibold text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</div>
+                <div class="text-[10px] text-gray-400 mt-0.5">Buy: LKR {{ Number(p.purchase_price).toLocaleString() }}</div>
+              </td>
               <td class="table-td">
                 <span :class="p.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
                   {{ p.is_active ? 'Active' : 'Inactive' }}
@@ -84,28 +140,20 @@
                       {{ printingId === p.id ? 'Printing…' : 'Print' }}
                     </button>
                   </div>
-                  <button @click="openEdit(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
-                    <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
+                  <button @click="openEdit(p)" title="Edit" class="inline-flex items-center justify-center p-1.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200">
+                    <PencilSquareIcon class="w-4 h-4" />
                   </button>
-                  <button @click="deleteProduct(p)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
-                    <TrashIcon class="w-3.5 h-3.5" /> Delete
+                  <button @click="deleteProduct(p)" title="Delete" class="inline-flex items-center justify-center p-1.5 rounded-md bg-red-100 text-red-700 hover:bg-red-200">
+                    <TrashIcon class="w-4 h-4" />
                   </button>
                 </div>
               </td>
             </tr>
-            <tr v-if="!products.data?.length">
-              <td colspan="11" class="table-td text-center text-gray-400 py-8">No parts found</td>
+            <tr v-if="!loading && !products.data?.length">
+              <td colspan="10" class="table-td text-center text-gray-400 py-8">No parts found</td>
             </tr>
           </tbody>
         </table>
-      </div>
-      <!-- Pagination -->
-      <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600">
-        <span>{{ products.from }}–{{ products.to }} of {{ products.total }}</span>
-        <div class="flex gap-2">
-          <button @click="page--; fetchProducts()" :disabled="page <= 1" class="btn-secondary py-1 px-3 text-xs disabled:opacity-40">Prev</button>
-          <button @click="page++; fetchProducts()" :disabled="page >= products.last_page" class="btn-secondary py-1 px-3 text-xs disabled:opacity-40">Next</button>
-        </div>
       </div>
     </div>
 
@@ -127,14 +175,33 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { PencilSquareIcon, PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/vue/24/outline'
 import JsBarcode from 'jsbarcode'
 import ProductModal from '@/components/ProductModal.vue'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 
+const STORAGE_KEY = 'products_filters'
+
+function loadFilters() {
+  try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}') } catch { return {} }
+}
+function saveFilters() {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+    search: search.value,
+    partCategoryFilter: partCategoryFilter.value,
+    vehicleTypeFilter: vehicleTypeFilter.value,
+    brandFilter: brandFilter.value,
+    modelFilter: modelFilter.value,
+    lowStockOnly: lowStockOnly.value,
+  }))
+}
+
+const saved = loadFilters()
+
 const products         = ref({ data: [] })
+const loading          = ref(false)
 const suppliers        = ref([])
 const vehicleTypes     = ref([])
 const brands           = ref([])
@@ -142,32 +209,71 @@ const vehicleModels    = ref([])
 const partCategories   = ref([])
 const partBrands       = ref([])
 const qualityTypes     = ref([])
-const search           = ref('')
-const partCategoryFilter = ref('')
-const vehicleTypeFilter  = ref('')
-const lowStockOnly     = ref(false)
+const search             = ref(saved.search            ?? '')
+const partCategoryFilter = ref(saved.partCategoryFilter ?? '')
+const vehicleTypeFilter  = ref(saved.vehicleTypeFilter  ?? '')
+const brandFilter        = ref(saved.brandFilter        ?? '')
+const modelFilter        = ref(saved.modelFilter        ?? '')
+const lowStockOnly       = ref(saved.lowStockOnly       ?? false)
 const page             = ref(1)
 const showModal        = ref(false)
 const printingId       = ref(null)
 const printQty         = ref({})
 const editing          = ref(null)
 
+const hasActiveFilter = computed(() =>
+  search.value || partCategoryFilter.value || vehicleTypeFilter.value ||
+  brandFilter.value || modelFilter.value || lowStockOnly.value
+)
+
+const pageNumbers = computed(() => {
+  const last = products.value.last_page || 1
+  const cur  = page.value
+  if (last <= 7) return Array.from({ length: last }, (_, i) => i + 1)
+  const pages = []
+  pages.push(1)
+  if (cur > 3) pages.push('...')
+  for (let i = Math.max(2, cur - 1); i <= Math.min(last - 1, cur + 1); i++) pages.push(i)
+  if (cur < last - 2) pages.push('...')
+  pages.push(last)
+  return pages
+})
+
+function goPage(p) {
+  page.value = p
+  fetchProducts()
+}
+
+function clearFilters() {
+  search.value = ''; partCategoryFilter.value = ''; vehicleTypeFilter.value = ''
+  brandFilter.value = ''; modelFilter.value = ''; lowStockOnly.value = false
+  page.value = 1; saveFilters(); fetchProducts()
+}
+
+function onFilterChange() {
+  page.value = 1; saveFilters(); fetchProducts()
+}
+
 let debounceTimer = null
 function debouncedFetch() {
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => { page.value = 1; fetchProducts() }, 400)
+  debounceTimer = setTimeout(() => { page.value = 1; saveFilters(); fetchProducts() }, 400)
 }
 
 async function fetchProducts() {
+  loading.value = true
   const params = {
     page: page.value,
     search: search.value,
     part_category_id: partCategoryFilter.value,
     vehicle_type_id:  vehicleTypeFilter.value,
+    brand_id:         brandFilter.value,
+    model_id:         modelFilter.value,
   }
   if (lowStockOnly.value) params.low_stock = 1
   const { data } = await axios.get('/api/products', { params })
   products.value = data
+  loading.value = false
 }
 
 async function fetchRefs() {

@@ -39,6 +39,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/shop-branding', [ShopSettingController::class, 'branding']);
 
+// Keep-alive ping for shared hosting
+Route::get('/ping', fn() => response()->json(['ok' => true]));
+
 // Public — no auth required
 Route::get('/sales/public/{token}', [SaleController::class, 'publicView']);
 

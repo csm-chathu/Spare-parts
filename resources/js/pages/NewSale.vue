@@ -60,80 +60,109 @@
             <button @click="addItem" class="mt-2 text-blue-600 hover:underline text-sm font-medium">+ Add first item</button>
           </div>
 
-          <!-- Cart item rows -->
-          <div class="space-y-3">
-            <div v-for="(item, i) in form.items" :key="i" class="border border-gray-200 rounded-xl">
+          <!-- Cart table -->
+          <div v-if="form.items.length" class="border border-gray-200 rounded-xl">
+            <!-- Header -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+              <span class="w-6 shrink-0"></span>
+              <span class="flex-1">Part</span>
+              <span class="w-20 shrink-0 text-center">Qty</span>
+              <span class="w-28 shrink-0">Unit Price (LKR)</span>
+              <span class="w-24 shrink-0">Discount (LKR)</span>
+              <span class="w-20 shrink-0 text-right">Total</span>
+              <span class="w-7 shrink-0"></span>
+            </div>
 
-              <!-- Item header row -->
-              <div class="bg-gray-50 px-4 py-2.5 flex items-start gap-3 border-b border-gray-100">
-                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-2">{{ i + 1 }}</span>
-                <div class="relative flex-1">
-                  <input
-                    v-model="item.product_search"
-                    type="text"
-                    class="form-input w-full font-medium"
-                    placeholder="Type part name, SKU, or barcode..."
-                    @input="item.product_search?.trim() ? openProductDropdown(item) : (item.product_dropdown_open = false)"
-                    @focus="item.product_search?.trim() ? openProductDropdown(item) : null"
-                    @keyup.enter.prevent="openProductDropdown(item)"
-                  />
-                  <div v-if="item.product_dropdown_open" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
-                    <button
-                      v-for="p in searchProducts(item.product_search)"
-                      :key="p.id"
-                      type="button"
-                      class="flex w-full items-start justify-between gap-3 px-3 py-2 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                      @mousedown.prevent="selectProduct(item, p)"
-                    >
-                      <div class="shrink-0 w-10 h-10 rounded-md bg-gray-100 overflow-hidden flex items-center justify-center">
-                        <img v-if="p.image" :src="p.image" :alt="p.name" class="w-full h-full object-cover" />
-                        <WrenchScrewdriverIcon v-else class="w-5 h-5 text-gray-300" />
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
-                        <p class="text-[11px] text-gray-500 truncate">
-                          SKU: {{ p.sku }}<span v-if="p.barcode"> · Barcode: {{ p.barcode }}</span>
-                          <span v-if="p.part_category"> · {{ p.part_category.name }}</span>
-                        </p>
-                      </div>
-                      <div class="shrink-0 text-right text-[11px] text-gray-500">
-                        <p class="font-medium text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</p>
-                        <p>Stock: {{ p.stock_quantity }}</p>
-                      </div>
-                    </button>
-                    <div v-if="!searchProducts(item.product_search).length" class="px-3 py-2 text-sm text-gray-400">
-                      No parts found
+            <!-- Rows -->
+            <div v-for="(item, i) in form.items" :key="i"
+              class="flex items-start gap-2 px-3 py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/60">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-1">{{ i + 1 }}</span>
+
+              <!-- Product search -->
+              <div class="relative flex-1 min-w-0">
+                <input
+                  :id="`item-search-${i}`"
+                  v-model="item.product_search"
+                  type="text"
+                  class="form-input w-full font-medium"
+                  placeholder="Type part name, SKU, or barcode..."
+                  @input="item.product_id = ''; item.product_ref = null; item.product_search?.trim() ? openProductDropdown(item) : (item.product_dropdown_open = false); item.product_dropdown_index = -1"
+                  @focus="!item.product_id && item.product_search?.trim() ? openProductDropdown(item) : null"
+                  @keydown.down.prevent="moveDropdown(item, 1)"
+                  @keydown.up.prevent="moveDropdown(item, -1)"
+                  @keydown.enter.prevent="confirmDropdown(item, i)"
+                  @keydown.esc="item.product_dropdown_open = false"
+                />
+                <div v-if="item.product_dropdown_open" :id="`dd-${i}`" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                  <button
+                    v-for="(p, pi) in searchProducts(item.product_search)"
+                    :key="p.id"
+                    :id="`dd-${i}-${pi}`"
+                    type="button"
+                    :class="pi === item.product_dropdown_index ? 'bg-blue-50' : 'hover:bg-blue-50'"
+                    class="flex w-full items-start justify-between gap-3 px-3 py-2 text-left border-b border-gray-100 last:border-b-0"
+                    @mousedown.prevent="selectProduct(item, p)"
+                  >
+                    <div class="shrink-0 w-10 h-10 rounded-md bg-gray-100 overflow-hidden flex items-center justify-center">
+                      <img v-if="p.image" :src="p.image" :alt="p.name" class="w-full h-full object-cover" />
+                      <WrenchScrewdriverIcon v-else class="w-5 h-5 text-gray-300" />
                     </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
+                      <p class="text-[11px] text-gray-500 truncate">
+                        <span v-if="p.part_number" class="font-mono font-medium text-gray-600">{{ p.part_number }}</span>
+                        <span v-if="p.part_number && p.sku"> · </span>
+                        SKU: {{ p.sku }}<span v-if="p.barcode"> · {{ p.barcode }}</span>
+                      </p>
+                      <p v-if="p.brand || p.model" class="text-[11px] text-gray-400 truncate">
+                        <span v-if="p.brand">{{ p.brand.name }}</span>
+                        <span v-if="p.model"> · {{ p.model.name }}</span>
+                      </p>
+                    </div>
+                    <div class="shrink-0 text-right text-[11px] text-gray-500">
+                      <p class="font-medium text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</p>
+                      <p>Stock: {{ p.stock_quantity }}</p>
+                    </div>
+                  </button>
+                  <div v-if="!searchProducts(item.product_search).length" class="px-3 py-2 text-sm text-gray-400">
+                    No parts found
                   </div>
                 </div>
-                <button @click="removeItem(i)"
-                  class="w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0 mt-1">
-                  <XMarkIcon class="w-4 h-4" />
-                </button>
-              </div>
-
-              <!-- Item fields -->
-              <div class="px-4 py-3 space-y-3">
-                <div class="grid grid-cols-3 gap-3">
-                  <div>
-                    <label class="text-xs font-medium text-gray-500 mb-1 block">Quantity</label>
-                    <input v-model.number="item.quantity" type="number" min="1" class="form-input text-center font-semibold" @input="recalcItem(item)" />
-                  </div>
-                  <div>
-                    <label class="text-xs font-medium text-gray-500 mb-1 block">Unit Price (LKR)</label>
-                    <input v-model.number="item.unit_price" type="number" min="0" class="form-input" @input="recalcItem(item)" />
-                  </div>
-                  <div>
-                    <label class="text-xs font-medium text-gray-500 mb-1 block">Item Discount (LKR)</label>
-                    <input v-model.number="item.discount" type="number" min="0" class="form-input" @input="recalcItem(item)" />
-                  </div>
-                </div>
-
-                <!-- Line total -->
-                <div v-if="item.unit_price > 0" class="text-right text-sm text-gray-500">
-                  Line Total: <strong class="text-blue-700">LKR {{ lkr(item._lineTotal) }}</strong>
+                <!-- Part meta -->
+                <div v-if="item.product_ref" class="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <span v-if="item.product_ref.part_number" class="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ item.product_ref.part_number }}</span>
+                  <span v-if="item.product_ref.brand" class="text-[10px] text-gray-400">{{ item.product_ref.brand.name }}</span>
+                  <span v-if="item.product_ref.model" class="text-[10px] text-gray-400">· {{ item.product_ref.model.name }}</span>
                 </div>
               </div>
+
+              <!-- Qty -->
+              <input :id="`item-qty-${i}`" v-model.number="item.quantity" type="number" min="1"
+                class="form-input w-20 shrink-0 text-center font-semibold mt-1" @input="recalcItem(item)"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="focusField(`item-price-${i}`)" />
+
+              <!-- Unit Price -->
+              <input :id="`item-price-${i}`" v-model.number="item.unit_price" type="number" min="0"
+                class="form-input w-28 shrink-0 mt-1" @input="recalcItem(item)"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="focusField(`item-discount-${i}`)" />
+
+              <!-- Discount -->
+              <input :id="`item-discount-${i}`" v-model.number="item.discount" type="number" min="0"
+                class="form-input w-24 shrink-0 mt-1" @input="recalcItem(item)"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="addItemAndFocus()" />
+
+              <!-- Line total -->
+              <span class="w-20 shrink-0 text-right text-sm font-semibold text-blue-700 mt-2">
+                {{ item.unit_price > 0 ? lkr(item._lineTotal) : '—' }}
+              </span>
+
+              <button @click="removeItem(i)"
+                class="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0 mt-1">
+                <TrashIcon class="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -211,18 +240,14 @@
           <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-1">
             <CreditCardIcon class="w-4 h-4 text-green-500" /> Payment
           </h3>
-          <div>
-            <label class="form-label">Sale Type</label>
-            <select v-model="form.sale_type" class="form-input" @change="onSaleTypeChange">
-              <option value="instant">Instant Sale (deliver now)</option>
-              <option value="booking">Booking (advance now, deliver later)</option>
-            </select>
-          </div>
-          <div v-if="form.sale_type === 'booking'">
-            <label class="form-label">Booking Expiry (max 3 months)</label>
-            <input v-model="form.booking_expires_at" type="date" class="form-input" />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="form-label">Sale Type</label>
+              <select v-model="form.sale_type" class="form-input" @change="onSaleTypeChange">
+                <option value="instant">Instant</option>
+                <option value="booking">Booking</option>
+              </select>
+            </div>
             <div>
               <label class="form-label">Method</label>
               <select v-model="form.payment_method" class="form-input">
@@ -241,6 +266,10 @@
               </select>
             </div>
           </div>
+          <div v-if="form.sale_type === 'booking'">
+            <label class="form-label">Booking Expiry (max 3 months)</label>
+            <input v-model="form.booking_expires_at" type="date" class="form-input" />
+          </div>
           <div>
             <label class="form-label">Overall Discount (LKR)</label>
             <input v-model.number="form.discount" type="number" min="0" class="form-input" @input="recalc" />
@@ -248,22 +277,23 @@
 
           <!-- Tax -->
           <div class="border-t pt-3">
-            <div class="flex items-center justify-between mb-2">
-              <label class="form-label mb-0 flex items-center gap-1.5">
-                <CalculatorIcon class="w-3.5 h-3.5 text-gray-400" /> Tax
-              </label>
-              <select v-model="selectedTaxId" class="form-input text-xs py-1 w-32" @change="applyTax">
-                <option value="">No Tax</option>
-                <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.rate }}%)</option>
-              </select>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
+            <label class="form-label flex items-center gap-1.5 mb-2">
+              <CalculatorIcon class="w-3.5 h-3.5 text-gray-400" /> Tax
+            </label>
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="text-xs text-gray-400">Preset</label>
+                <select v-model="selectedTaxId" class="form-input mt-1" @change="applyTax">
+                  <option value="">No Tax</option>
+                  <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.rate }}%)</option>
+                </select>
+              </div>
               <div>
                 <label class="text-xs text-gray-400">Rate (%)</label>
                 <input v-model.number="form.tax_rate" type="number" min="0" step="0.01" class="form-input mt-1" @input="recalc" />
               </div>
               <div>
-                <label class="text-xs text-gray-400">Tax Amount (LKR)</label>
+                <label class="text-xs text-gray-400">Amount (LKR)</label>
                 <input v-model.number="form.tax" type="number" class="form-input mt-1 bg-gray-50 text-gray-500" readonly />
               </div>
             </div>
@@ -351,12 +381,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import {
-  ArrowLeftIcon, PlusIcon, XMarkIcon,
+  ArrowLeftIcon, PlusIcon, XMarkIcon, TrashIcon,
   ShoppingCartIcon, UserIcon, UserPlusIcon, CreditCardIcon, CalculatorIcon,
   ReceiptPercentIcon, CheckCircleIcon, ArrowPathIcon,
   ExclamationTriangleIcon, ChatBubbleLeftIcon, QrCodeIcon, WrenchScrewdriverIcon,
@@ -450,12 +480,42 @@ function openProductDropdown(item) {
   item.product_dropdown_open = true
 }
 
-function selectProduct(item, product) {
+function focusField(id) {
+  nextTick(() => { document.getElementById(id)?.focus() })
+}
+
+function addItemAndFocus() {
+  form.items.push(newItem())
+  const i = form.items.length - 1
+  nextTick(() => { document.getElementById(`item-search-${i}`)?.focus() })
+}
+
+function moveDropdown(item, dir) {
+  if (!item.product_dropdown_open) { item.product_dropdown_open = true; return }
+  const results = searchProducts(item.product_search)
+  item.product_dropdown_index = Math.max(0, Math.min(results.length - 1, item.product_dropdown_index + dir))
+  const el = document.getElementById(`dd-${form.items.indexOf(item)}-${item.product_dropdown_index}`)
+  el?.scrollIntoView({ block: 'nearest' })
+}
+
+function confirmDropdown(item, i) {
+  const results = searchProducts(item.product_search)
+  const idx = item.product_dropdown_index
+  if (item.product_dropdown_open && idx >= 0 && results[idx]) {
+    selectProduct(item, results[idx], i)
+  } else {
+    openProductDropdown(item)
+  }
+}
+
+function selectProduct(item, product, i) {
   item.product_id = product.id
   item.product_search = [product.name, product.sku ? `SKU: ${product.sku}` : null, product.barcode ? `Barcode: ${product.barcode}` : null]
     .filter(Boolean).join(' · ')
   item.product_dropdown_open = false
   fillProduct(item)
+  const idx = i ?? form.items.indexOf(item)
+  focusField(`item-qty-${idx}`)
 }
 
 const selectedCustomer = computed(() =>
@@ -488,7 +548,7 @@ function lkr(val) {
 
 function newItem() {
   return {
-    product_id: '', product_search: '', product_dropdown_open: false,
+    product_id: '', product_search: '', product_dropdown_open: false, product_dropdown_index: -1,
     quantity: 1, unit_price: 0, discount: 0,
     product_ref: null, _lineTotal: 0,
   }

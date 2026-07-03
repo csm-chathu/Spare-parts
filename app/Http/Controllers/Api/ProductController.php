@@ -31,6 +31,7 @@ class ProductController extends Controller
             ->when(request('part_category_id'), fn($q, $c) => $q->where('part_category_id', $c))
             ->when(request('vehicle_type_id'),  fn($q, $v) => $q->where('vehicle_type_id', $v))
             ->when(request('brand_id'),         fn($q, $b) => $q->where('brand_id', $b))
+            ->when(request('model_id'),          fn($q, $m) => $q->where('model_id', $m))
             ->when(request('low_stock'), fn($q) => $q->whereColumn('stock_quantity', '<=', 'min_stock_level'))
             ->latest()
             ->paginate(request('per_page', 20));

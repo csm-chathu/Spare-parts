@@ -2,17 +2,26 @@
   <div class="space-y-6">
     <!-- Stat cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard v-for="s in stats" :key="s.label" v-bind="s" />
+      <template v-if="!loaded">
+        <div v-for="n in 4" :key="n" class="card animate-pulse">
+          <div class="h-3 bg-gray-200 rounded w-1/2 mb-3"></div>
+          <div class="h-7 bg-gray-200 rounded w-2/3"></div>
+        </div>
+      </template>
+      <StatCard v-else v-for="s in stats" :key="s.label" v-bind="s" />
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Revenue chart -->
       <div class="lg:col-span-2 card">
         <h3 class="font-semibold text-gray-700 mb-4">Revenue — Last 30 Days</h3>
-        <Line v-if="chartData" :data="chartData" :options="chartOptions" class="max-h-64" />
-        <div v-else-if="!loaded" class="h-64 flex items-center justify-center text-gray-400">
-          <div class="flex items-center gap-2"><span class="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-amber-500 rounded-full"></span> Loading…</div>
+        <div v-if="!loaded" class="h-64 animate-pulse space-y-2 pt-4">
+          <div class="flex items-end gap-1 h-48">
+            <div v-for="n in 14" :key="n" class="flex-1 bg-gray-200 rounded-t" :style="`height:${30 + (n * 13) % 70}%`"></div>
+          </div>
+          <div class="h-3 bg-gray-200 rounded w-full"></div>
         </div>
+        <Line v-else-if="chartData" :data="chartData" :options="chartOptions" class="max-h-64" />
         <div v-else class="h-64 flex flex-col items-center justify-center text-gray-400 gap-2">
           <svg class="w-10 h-10 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 17l6-6 4 4 8-8" /></svg>
           <span class="text-sm">No sales in the last 30 days</span>
@@ -23,14 +32,25 @@
       <div class="card">
         <h3 class="font-semibold text-gray-700 mb-4">Top Products (This Month)</h3>
         <ul class="space-y-3">
-          <li v-for="(p, i) in data.top_products" :key="p.id" class="flex items-center gap-3">
-            <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">{{ i+1 }}</span>
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
-              <p class="text-xs text-gray-400">{{ p.total_sold }} sold</p>
-            </div>
-          </li>
-          <li v-if="!data.top_products?.length" class="text-sm text-gray-400">No sales this month</li>
+          <template v-if="!loaded">
+            <li v-for="n in 5" :key="n" class="flex items-center gap-3 animate-pulse">
+              <div class="w-6 h-6 rounded-full bg-gray-200 shrink-0"></div>
+              <div class="flex-1 space-y-1">
+                <div class="h-3 bg-gray-200 rounded w-3/4"></div>
+                <div class="h-2.5 bg-gray-100 rounded w-1/3"></div>
+              </div>
+            </li>
+          </template>
+          <template v-else>
+            <li v-for="(p, i) in data.top_products" :key="p.id" class="flex items-center gap-3">
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">{{ i+1 }}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
+                <p class="text-xs text-gray-400">{{ p.total_sold }} sold</p>
+              </div>
+            </li>
+            <li v-if="!data.top_products?.length" class="text-sm text-gray-400">No sales this month</li>
+          </template>
         </ul>
       </div>
     </div>
@@ -84,7 +104,16 @@
           <span class="w-2 h-2 rounded-full bg-red-500"></span>
           Low Stock Alerts
         </h3>
-        <div class="overflow-x-auto">
+        <div v-if="!loaded" class="animate-pulse space-y-2">
+          <div class="h-3 bg-gray-200 rounded w-full"></div>
+          <div v-for="n in 5" :key="n" class="flex gap-3 py-2 border-b border-gray-100">
+            <div class="h-3 bg-gray-200 rounded w-1/5"></div>
+            <div class="h-3 bg-gray-200 rounded flex-1"></div>
+            <div class="h-3 bg-gray-200 rounded w-10"></div>
+            <div class="h-3 bg-gray-200 rounded w-8"></div>
+          </div>
+        </div>
+        <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead><tr>
               <th class="table-th">SKU</th>
@@ -110,7 +139,19 @@
       <!-- Recent sales -->
       <div class="card">
         <h3 class="font-semibold text-gray-700 mb-4">Recent Sales</h3>
-        <div class="space-y-3">
+        <div v-if="!loaded" class="animate-pulse space-y-3">
+          <div v-for="n in 5" :key="n" class="flex items-center justify-between py-2 border-b border-gray-100">
+            <div class="space-y-1.5">
+              <div class="h-3 bg-gray-200 rounded w-28"></div>
+              <div class="h-2.5 bg-gray-100 rounded w-20"></div>
+            </div>
+            <div class="space-y-1.5 text-right">
+              <div class="h-3 bg-gray-200 rounded w-24 ml-auto"></div>
+              <div class="h-2.5 bg-gray-100 rounded w-14 ml-auto"></div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="space-y-3">
           <div v-for="sale in data.recent_sales" :key="sale.id"
             class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <div>

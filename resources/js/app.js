@@ -27,3 +27,8 @@ app.use(createPinia())
 app.use(router)
 app.mount('#app')
 
+// Keep shared hosting backend warm — ping every 60 s to prevent cold starts
+setInterval(() => {
+  axios.get('/api/ping').catch(() => {})
+}, 60000)
+

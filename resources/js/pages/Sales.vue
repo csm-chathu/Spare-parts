@@ -84,7 +84,6 @@
               <th class="table-th">Customer</th>
               <th class="table-th w-28">Vehicle No.</th>
               <th class="table-th w-28">Date</th>
-              <th class="table-th w-24">Type</th>
               <th class="table-th w-36 text-right">Total</th>
               <th class="table-th w-32">Payment</th>
               <th class="table-th w-24">Delivery</th>
@@ -94,7 +93,7 @@
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="loading">
-              <td colspan="10" class="table-td text-center py-10 text-gray-400">
+              <td colspan="9" class="table-td text-center py-10 text-gray-400">
                 <div class="flex items-center justify-center gap-2">
                   <ArrowPathIcon class="w-4 h-4 animate-spin" /> Loading…
                 </div>
@@ -109,6 +108,11 @@
                     {{ s.invoice_number }}
                   </span>
                   <span v-if="s.is_draft" class="ml-1 text-[10px] font-bold text-yellow-700 bg-yellow-100 border border-yellow-300 px-1 py-0.5 rounded uppercase tracking-wide">Draft</span>
+                  <div class="mt-1">
+                    <span class="badge text-[10px]" :class="s.sale_type === 'booking' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'">
+                      {{ s.sale_type || 'instant' }}
+                    </span>
+                  </div>
                 </td>
                 <td class="table-td">
                   <div class="flex items-center gap-2">
@@ -132,13 +136,9 @@
                   <div>{{ fmtDate(s.sold_at) }}</div>
                   <div class="text-gray-400">{{ formatTime(s.sold_at) }}</div>
                 </td>
-                <td class="table-td">
-                  <span class="badge text-xs" :class="s.sale_type === 'booking' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'">
-                    {{ s.sale_type || 'instant' }}
-                  </span>
-                </td>
                 <td class="table-td text-right">
                   <span class="font-bold text-amber-700">LKR {{ Number(s.total).toLocaleString() }}</span>
+                  <div v-if="s.tax > 0" class="text-[10px] text-gray-400 mt-0.5">Tax: LKR {{ Number(s.tax).toLocaleString() }}</div>
                 </td>
                 <td class="table-td">
                   <span :class="methodClass(s.payment_method)"
@@ -178,7 +178,7 @@
                 </td>
               </tr>
               <tr v-if="!sales.data?.length">
-                <td colspan="10" class="table-td text-center py-12">
+                <td colspan="9" class="table-td text-center py-12">
                   <div class="flex flex-col items-center gap-2 text-gray-400">
                     <ReceiptPercentIcon class="w-10 h-10 opacity-30" />
                     <span>No sales found</span>
