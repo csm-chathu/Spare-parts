@@ -19,27 +19,9 @@
         <button v-if="hasActiveFilter" @click="clearFilters"
           class="text-xs text-gray-500 hover:text-red-600 underline whitespace-nowrap">Clear filters</button>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <!-- Pagination -->
-        <span class="text-xs text-gray-400 mr-1">{{ products.from }}–{{ products.to }} of {{ products.total }}</span>
-        <button @click="goPage(1)" :disabled="page <= 1"
-          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
-        <button @click="goPage(page - 1)" :disabled="page <= 1"
-          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
-        <template v-for="pg in pageNumbers" :key="pg">
-          <span v-if="pg === '...'" class="px-1 text-gray-400 text-xs select-none">…</span>
-          <button v-else @click="goPage(pg)"
-            :class="pg === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:bg-gray-100 text-gray-700'"
-            class="min-w-[28px] px-2 py-1 rounded text-xs border">{{ pg }}</button>
-        </template>
-        <button @click="goPage(page + 1)" :disabled="page >= products.last_page"
-          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
-        <button @click="goPage(products.last_page)" :disabled="page >= products.last_page"
-          class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
-        <button @click="openCreate" class="btn-primary flex items-center gap-2 ml-2">
-          <PlusIcon class="w-4 h-4" /> Add Part
-        </button>
-      </div>
+      <button @click="openCreate" class="btn-primary flex items-center gap-2 shrink-0">
+        <PlusIcon class="w-4 h-4" /> Add Part
+      </button>
     </div>
 
     <!-- Table -->
@@ -115,8 +97,8 @@
                 </span>
               </td>
               <td class="table-td">
-                <div class="font-semibold text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</div>
-                <div class="text-[10px] text-gray-400 mt-0.5">Buy: LKR {{ Number(p.purchase_price).toLocaleString() }}</div>
+                <div class="font-semibold text-blue-700">{{ Number(p.selling_price).toLocaleString() }}</div>
+                <div class="text-[10px] text-gray-400 mt-0.5">Buy: {{ Number(p.purchase_price).toLocaleString() }}</div>
               </td>
               <td class="table-td">
                 <span :class="p.is_active ? 'badge bg-green-100 text-green-700' : 'badge bg-gray-100 text-gray-500'">
@@ -154,6 +136,26 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      <!-- Pagination -->
+      <div class="px-4 py-3 border-t border-gray-200 flex items-center justify-between text-sm text-gray-600">
+        <span class="text-xs text-gray-400">{{ products.from }}–{{ products.to }} of {{ products.total }}</span>
+        <div class="flex items-center gap-1">
+          <button @click="goPage(1)" :disabled="page <= 1"
+            class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">«</button>
+          <button @click="goPage(page - 1)" :disabled="page <= 1"
+            class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">‹</button>
+          <template v-for="pg in pageNumbers" :key="pg">
+            <span v-if="pg === '...'" class="px-1 text-gray-400 text-xs select-none">…</span>
+            <button v-else @click="goPage(pg)"
+              :class="pg === page ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:bg-gray-100 text-gray-700'"
+              class="min-w-[28px] px-2 py-1 rounded text-xs border">{{ pg }}</button>
+          </template>
+          <button @click="goPage(page + 1)" :disabled="page >= products.last_page"
+            class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">›</button>
+          <button @click="goPage(products.last_page)" :disabled="page >= products.last_page"
+            class="px-2 py-1 rounded text-xs border border-gray-200 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">»</button>
+        </div>
       </div>
     </div>
 
