@@ -18,7 +18,7 @@ class PurchaseController extends Controller
     public function index()
     {
         $user = request()->user();
-        $purchases = Purchase::with(['supplier:id,name', 'user:id,name', 'journalEntry:id,entry_number'])
+        $purchases = Purchase::with(['supplier:id,name', 'user:id,name', 'journalEntry:id,entry_number', 'items.product:id,name'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where('purchase_number', 'like', "%$s%"))
             ->when(request('supplier_id'), fn($q, $s) => $q->where('supplier_id', $s))

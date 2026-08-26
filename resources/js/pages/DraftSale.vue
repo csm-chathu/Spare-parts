@@ -412,7 +412,7 @@ function buildPayload() {
     maintenance_amount: form.maintenance_amount,
     amount_paid:        form.amount_paid,
     notes:              form.notes,
-    items: form.items.map(i => ({
+    items: form.items.filter(i => i.product_id).map(i => ({
       product_id: i.product_id,
       quantity:   i.quantity,
       unit_price: i.unit_price,
@@ -425,9 +425,8 @@ async function saveDraft() {
   if (!form.items.length) return
   saving.value = true; error.value = ''
   try {
-    const { data } = await axios.put(`/api/sales/${route.params.id}`, buildPayload())
-    draft.value = data
-    lastSaved.value = new Date().toLocaleTimeString('en-LK', { hour: '2-digit', minute: '2-digit' })
+    await axios.put(`/api/sales/${route.params.id}`, buildPayload())
+    router.push({ name: 'sales' })
   } catch (e) {
     error.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')

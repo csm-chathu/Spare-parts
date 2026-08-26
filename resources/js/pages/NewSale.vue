@@ -623,7 +623,7 @@ async function submit(asDraft = false) {
       total:              total.value,
       subtotal:           subtotal.value,
       is_draft:           asDraft,
-      items: form.items.map(i => ({
+      items: form.items.filter(i => i.product_id).map(i => ({
         product_id: i.product_id,
         quantity:   i.quantity,
         unit_price: i.unit_price,

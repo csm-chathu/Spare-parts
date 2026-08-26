@@ -127,8 +127,9 @@ class SaleController extends Controller
                 }
             }
 
-            $invoicePrefix  = $isDraft ? 'DRAFT' : 'INV';
-            $invoiceNumber  = $invoicePrefix . '-' . now()->format('Ymd') . '-' . str_pad(Sale::whereDate('created_at', today())->withTrashed()->count() + 1, 4, '0', STR_PAD_LEFT);
+            $invoiceNumber  = $isDraft
+                ? 'DRAFT-' . now()->format('Ymd') . '-' . str_pad(Sale::where('invoice_number', 'like', 'DRAFT-' . now()->format('Ymd') . '-%')->withTrashed()->count() + 1, 4, '0', STR_PAD_LEFT)
+                : $this->nextInvoiceNumber();
 
             $sale = Sale::create([
                 'branch_id'          => $request->user()->branch_id,
@@ -400,7 +401,7 @@ class SaleController extends Controller
                 }
             }
 
-            $invoiceNumber = 'INV-' . now()->format('Ymd') . '-' . str_pad(Sale::whereDate('created_at', today())->withTrashed()->count() + 1, 4, '0', STR_PAD_LEFT);
+            $invoiceNumber = $this->nextInvoiceNumber();
 
             foreach ($sale->items as $item) {
                 $item->product->decrement('stock_quantity', $item->quantity);
@@ -485,6 +486,18 @@ class SaleController extends Controller
     {
         $seq = JournalEntry::whereDate('created_at', today())->withTrashed()->count() + 1;
         return 'JE-' . date('Ymd') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+    }
+
+    private function nextInvoiceNumber(): string
+    {
+        $prefix = 'INV-' . now()->format('Ymd') . '-';
+        $last = Sale::where('invoice_number', 'like', $prefix . '%')
+            ->withTrashed()
+            ->lockForUpdate()
+            ->orderByDesc('invoice_number')
+            ->value('invoice_number');
+        $next = $last ? ((int) substr($last, -4)) + 1 : 1;
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     private function postInstantSaleJournal(Sale $sale, array $itemData = []): JournalEntry
