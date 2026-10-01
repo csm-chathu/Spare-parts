@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\UserFeatureController;
+use App\Http\Controllers\Api\JobCardController;
+use App\Http\Controllers\Api\JobCardPublicController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\BrandController;
@@ -44,9 +47,14 @@ Route::get('/ping', fn() => response()->json(['ok' => true]));
 
 // Public — no auth required
 Route::get('/sales/public/{token}', [SaleController::class, 'publicView']);
+Route::get('/job-cards/public/{token}', [JobCardPublicController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', fn(Request $request) => $request->user()->load('branch:id,name,code'));
+    Route::get('/me/features', [UserFeatureController::class, 'index']);
+    Route::get('/features/by-role/{role}', [UserFeatureController::class, 'byRole']);
+    Route::get('/users/{user}/features', [UserFeatureController::class, 'forUser']);
+    Route::put('/users/{user}/features', [UserFeatureController::class, 'saveForUser']);
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // Dashboard
@@ -58,6 +66,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/uploads/cloudinary', [CloudinaryUploadController::class, 'store']);
 
     // CRUD resources
+    // Job Cards
+    Route::get('job-cards',                          [JobCardController::class, 'index']);
+    Route::post('job-cards',                         [JobCardController::class, 'store']);
+    Route::get('job-cards/{jobCard}',                [JobCardController::class, 'show']);
+    Route::put('job-cards/{jobCard}',                [JobCardController::class, 'update']);
+    Route::delete('job-cards/{jobCard}',             [JobCardController::class, 'destroy']);
+    Route::post('job-cards/{jobCard}/items',         [JobCardController::class, 'addItem']);
+    Route::delete('job-cards/{jobCard}/items/{item}',[JobCardController::class, 'removeItem']);
+    Route::post('job-cards/{jobCard}/complete',      [JobCardController::class, 'complete']);
+
     Route::apiResource('suppliers',    SupplierController::class);
     Route::apiResource('products',     ProductController::class);
     Route::apiResource('customers',    CustomerController::class);

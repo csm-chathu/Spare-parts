@@ -1,82 +1,91 @@
 <template>
-  <div class="space-y-0">
+  <!-- Full-height POS layout, -6 to offset the parent p-6 padding -->
+  <div class="-m-6 flex flex-col" style="height: calc(100vh - 57px);">
 
-    <!-- Top bar -->
-    <div class="flex items-center justify-between mb-5">
+    <!-- ── Top bar ── -->
+    <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
       <div class="flex items-center gap-3">
         <router-link to="/sales"
           class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
           <ArrowLeftIcon class="w-4 h-4" /> Back to Sales
         </router-link>
         <span class="text-gray-300">/</span>
-        <h2 class="text-lg font-semibold text-gray-800">New Sale</h2>
+        <h2 class="text-base font-semibold text-gray-800">New Sale</h2>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-gray-400">
+        <span v-if="form.items.length" class="bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+          {{ form.items.length }} item{{ form.items.length !== 1 ? 's' : '' }}
+        </span>
+        <span class="font-medium text-gray-600">LKR {{ lkr(total) }}</span>
       </div>
     </div>
 
-    <!-- POS layout: Cart left | Summary right -->
-    <div class="flex gap-5 items-start">
+    <!-- ── Main 2-column body ── -->
+    <div class="flex flex-1 min-h-0">
 
-      <!-- ───── LEFT: Cart ───── -->
-      <div class="flex-1 min-w-0 space-y-4">
+      <!-- ═══ LEFT: Cart ═══ -->
+      <div class="flex-1 flex flex-col min-w-0 border-r border-gray-200 bg-gray-50">
 
-        <!-- Cart header -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-gray-700 flex items-center gap-2">
-              <ShoppingCartIcon class="w-4 h-4 text-blue-500" /> Cart Items
-              <span v-if="form.items.length" class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                {{ form.items.length }}
-              </span>
-            </h3>
-            <button @click="addItem"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">
-              <PlusIcon class="w-4 h-4" /> Add Item
-            </button>
-          </div>
-
-          <!-- Barcode scanner input -->
-          <div class="mb-3">
-            <div class="relative">
+        <!-- Barcode bar -->
+        <div class="px-5 py-3 bg-white border-b border-gray-200 shrink-0">
+          <div class="flex gap-2">
+            <div class="relative flex-1">
               <QrCodeIcon class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
                 v-model="barcodeInput"
                 type="text"
-                placeholder="Scan barcode (or type barcode/SKU) and press Enter..."
-                class="form-input pl-9 text-sm font-mono"
+                placeholder="Scan barcode or type SKU and press Enter…"
+                class="form-input pl-9 text-sm font-mono w-full"
                 @keyup.enter="scanBarcode"
                 @keyup.tab.prevent="scanBarcode"
               />
             </div>
-            <p v-if="barcodeError" class="mt-1 text-xs text-red-600 flex items-center gap-1">
-              <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ barcodeError }}
-            </p>
+            <button @click="addItem"
+              class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shrink-0">
+              <PlusIcon class="w-4 h-4" /> Add Item
+            </button>
           </div>
+          <p v-if="barcodeError" class="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ barcodeError }}
+          </p>
+        </div>
 
+        <!-- Cart table -->
+        <div class="flex-1 overflow-y-auto">
           <!-- Empty state -->
           <div v-if="!form.items.length"
-            class="flex flex-col items-center justify-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-            <ShoppingCartIcon class="w-12 h-12 opacity-20 mb-2" />
-            <p class="text-sm">No items yet</p>
-            <button @click="addItem" class="mt-2 text-blue-600 hover:underline text-sm font-medium">+ Add first item</button>
+            class="flex flex-col items-center justify-center h-full text-gray-400">
+            <div class="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+              <ShoppingCartIcon class="w-10 h-10 text-gray-300" />
+            </div>
+            <p class="font-medium text-gray-500 mb-1">Cart is empty</p>
+            <p class="text-sm">Scan a barcode or click Add Item to start</p>
+            <button @click="addItem"
+              class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors">
+              <PlusIcon class="w-4 h-4" /> Add First Item
+            </button>
           </div>
 
-          <!-- Cart table -->
-          <div v-if="form.items.length" class="border border-gray-200 rounded-xl">
-            <!-- Header -->
-            <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+          <!-- Items -->
+          <div v-if="form.items.length">
+            <!-- Table header -->
+            <div class="flex items-center gap-2 px-5 py-2 bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest sticky top-0">
               <span class="w-6 shrink-0"></span>
-              <span class="flex-1">Part</span>
+              <span class="flex-1">Part / Description</span>
               <span class="w-20 shrink-0 text-center">Qty</span>
-              <span class="w-28 shrink-0">Unit Price (LKR)</span>
-              <span class="w-24 shrink-0">Discount (LKR)</span>
-              <span class="w-20 shrink-0 text-right">Total</span>
-              <span class="w-7 shrink-0"></span>
+              <span class="w-28 shrink-0">Unit Price</span>
+              <span class="w-24 shrink-0">Discount</span>
+              <span class="w-24 shrink-0 text-right">Line Total</span>
+              <span class="w-8 shrink-0"></span>
             </div>
 
-            <!-- Rows -->
             <div v-for="(item, i) in form.items" :key="i"
-              class="flex items-start gap-2 px-3 py-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50/60">
-              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-1">{{ i + 1 }}</span>
+              class="flex items-start gap-2 px-5 py-3 border-b border-gray-100 bg-white hover:bg-blue-50/30 transition-colors">
+
+              <!-- Row number -->
+              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-1.5">
+                {{ i + 1 }}
+              </span>
 
               <!-- Product search -->
               <div class="relative flex-1 min-w-0">
@@ -84,8 +93,8 @@
                   :id="`item-search-${i}`"
                   v-model="item.product_search"
                   type="text"
-                  class="form-input w-full font-medium"
-                  placeholder="Type part name, SKU, or barcode..."
+                  class="form-input w-full font-medium text-sm"
+                  placeholder="Type part name, SKU or barcode…"
                   @input="item.product_id = ''; item.product_ref = null; item.product_search?.trim() ? openProductDropdown(item) : (item.product_dropdown_open = false); item.product_dropdown_index = -1"
                   @focus="!item.product_id && item.product_search?.trim() ? openProductDropdown(item) : null"
                   @keydown.down.prevent="moveDropdown(item, 1)"
@@ -93,44 +102,38 @@
                   @keydown.enter.prevent="confirmDropdown(item, i)"
                   @keydown.esc="item.product_dropdown_open = false"
                 />
-                <div v-if="item.product_dropdown_open" :id="`dd-${i}`" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                <!-- Dropdown -->
+                <div v-if="item.product_dropdown_open" :id="`dd-${i}`"
+                  class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
                   <button
                     v-for="(p, pi) in searchProducts(item.product_search)"
-                    :key="p.id"
-                    :id="`dd-${i}-${pi}`"
-                    type="button"
-                    :class="pi === item.product_dropdown_index ? 'bg-blue-50' : 'hover:bg-blue-50'"
-                    class="flex w-full items-start justify-between gap-3 px-3 py-2 text-left border-b border-gray-100 last:border-b-0"
-                    @mousedown.prevent="selectProduct(item, p)"
-                  >
-                    <div class="shrink-0 w-10 h-10 rounded-md bg-gray-100 overflow-hidden flex items-center justify-center">
+                    :key="p.id" :id="`dd-${i}-${pi}`" type="button"
+                    :class="pi === item.product_dropdown_index ? 'bg-blue-50' : 'hover:bg-gray-50'"
+                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left border-b border-gray-100 last:border-b-0"
+                    @mousedown.prevent="selectProduct(item, p)">
+                    <div class="shrink-0 w-9 h-9 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
                       <img v-if="p.image" :src="p.image" :alt="p.name" class="w-full h-full object-cover" />
                       <WrenchScrewdriverIcon v-else class="w-5 h-5 text-gray-300" />
                     </div>
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium text-gray-800 truncate">{{ p.name }}</p>
-                      <p class="text-[11px] text-gray-500 truncate">
-                        <span v-if="p.part_number" class="font-mono font-medium text-gray-600">{{ p.part_number }}</span>
-                        <span v-if="p.part_number && p.sku"> · </span>
-                        SKU: {{ p.sku }}<span v-if="p.barcode"> · {{ p.barcode }}</span>
-                      </p>
-                      <p v-if="p.brand || p.model" class="text-[11px] text-gray-400 truncate">
-                        <span v-if="p.brand">{{ p.brand.name }}</span>
-                        <span v-if="p.model"> · {{ p.model.name }}</span>
+                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</p>
+                      <p class="text-[11px] text-gray-400 truncate">
+                        <span v-if="p.part_number" class="font-mono text-gray-500">{{ p.part_number }}</span>
+                        <span v-if="p.part_number"> · </span>SKU: {{ p.sku }}
                       </p>
                     </div>
-                    <div class="shrink-0 text-right text-[11px] text-gray-500">
-                      <p class="font-medium text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</p>
-                      <p>Stock: {{ p.stock_quantity }}</p>
+                    <div class="shrink-0 text-right text-[11px]">
+                      <p class="font-bold text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</p>
+                      <p class="text-gray-400">Stock: {{ p.stock_quantity }}</p>
                     </div>
                   </button>
-                  <div v-if="!searchProducts(item.product_search).length" class="px-3 py-2 text-sm text-gray-400">
+                  <div v-if="!searchProducts(item.product_search).length" class="px-3 py-3 text-sm text-gray-400 text-center">
                     No parts found
                   </div>
                 </div>
-                <!-- Part meta -->
-                <div v-if="item.product_ref" class="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <span v-if="item.product_ref.part_number" class="text-[10px] font-mono text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{{ item.product_ref.part_number }}</span>
+                <!-- Part meta tags -->
+                <div v-if="item.product_ref" class="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <span v-if="item.product_ref.part_number" class="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ item.product_ref.part_number }}</span>
                   <span v-if="item.product_ref.brand" class="text-[10px] text-gray-400">{{ item.product_ref.brand.name }}</span>
                   <span v-if="item.product_ref.model" class="text-[10px] text-gray-400">· {{ item.product_ref.model.name }}</span>
                 </div>
@@ -138,244 +141,235 @@
 
               <!-- Qty -->
               <input :id="`item-qty-${i}`" v-model.number="item.quantity" type="number" min="1"
-                class="form-input w-20 shrink-0 text-center font-semibold mt-1" @input="recalcItem(item)"
-                @focus="$event.target.select()"
-                @keydown.enter.prevent="focusField(`item-price-${i}`)" />
+                class="form-input w-20 shrink-0 text-center font-bold mt-0.5 text-sm" @input="recalcItem(item)"
+                @focus="$event.target.select()" @keydown.enter.prevent="focusField(`item-price-${i}`)" />
 
               <!-- Unit Price -->
               <input :id="`item-price-${i}`" v-model.number="item.unit_price" type="number" min="0"
-                class="form-input w-28 shrink-0 mt-1" @input="recalcItem(item)"
-                @focus="$event.target.select()"
-                @keydown.enter.prevent="focusField(`item-discount-${i}`)" />
+                class="form-input w-28 shrink-0 mt-0.5 text-sm" @input="recalcItem(item)"
+                @focus="$event.target.select()" @keydown.enter.prevent="focusField(`item-discount-${i}`)" />
 
               <!-- Discount -->
               <input :id="`item-discount-${i}`" v-model.number="item.discount" type="number" min="0"
-                class="form-input w-24 shrink-0 mt-1" @input="recalcItem(item)"
-                @focus="$event.target.select()"
-                @keydown.enter.prevent="addItemAndFocus()" />
+                class="form-input w-24 shrink-0 mt-0.5 text-sm" @input="recalcItem(item)"
+                @focus="$event.target.select()" @keydown.enter.prevent="addItemAndFocus()" />
 
               <!-- Line total -->
-              <span class="w-20 shrink-0 text-right text-sm font-semibold text-blue-700 mt-2">
+              <span class="w-24 shrink-0 text-right text-sm font-bold text-blue-700 mt-2">
                 {{ item.unit_price > 0 ? lkr(item._lineTotal) : '—' }}
               </span>
 
               <button @click="removeItem(i)"
-                class="w-7 h-7 flex items-center justify-center rounded-md text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0 mt-1">
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0 mt-0.5">
                 <TrashIcon class="w-4 h-4" />
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Notes -->
-        <div class="card">
-          <label class="form-label flex items-center gap-1.5 mb-2">
-            <ChatBubbleLeftIcon class="w-4 h-4 text-gray-400" /> Sale Notes (optional)
-          </label>
-          <textarea v-model="form.notes" rows="2" placeholder="Any special instructions or remarks…" class="form-input resize-none"></textarea>
+        <!-- Notes bar -->
+        <div class="px-5 py-3 bg-white border-t border-gray-200 shrink-0">
+          <div class="flex items-center gap-2">
+            <ChatBubbleLeftIcon class="w-4 h-4 text-gray-400 shrink-0" />
+            <input v-model="form.notes" type="text"
+              placeholder="Sale notes or special instructions (optional)…"
+              class="form-input flex-1 text-sm" />
+          </div>
         </div>
       </div>
 
-      <!-- ───── RIGHT: Order summary ───── -->
-      <div class="w-80 xl:w-96 shrink-0 space-y-4 sticky top-4">
+      <!-- ═══ RIGHT: Panel ═══ -->
+      <div class="w-80 xl:w-96 shrink-0 flex flex-col bg-white">
+        <div class="flex-1 overflow-y-auto">
 
-        <!-- Customer -->
-        <div class="card space-y-2">
-          <div class="flex items-center justify-between mb-1">
-            <h3 class="font-semibold text-gray-700 flex items-center gap-2">
-              <UserIcon class="w-4 h-4 text-blue-500" /> Customer
-            </h3>
-            <button @click="showNewCustomer = !showNewCustomer" type="button"
-              class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors"
-              :class="showNewCustomer ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
-              <UserPlusIcon class="w-3.5 h-3.5" />
-              {{ showNewCustomer ? 'Cancel' : 'New Customer' }}
-            </button>
-          </div>
-
-          <!-- Quick new-customer form -->
-          <div v-if="showNewCustomer" class="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-            <p class="text-xs font-semibold text-blue-700 mb-1 flex items-center gap-1.5">
-              <UserPlusIcon class="w-3.5 h-3.5" /> Quick Add Customer
-            </p>
-            <div>
-              <label class="text-xs text-gray-500 block mb-1">Name <span class="text-red-400">*</span></label>
-              <input v-model="newCustomer.name" type="text" placeholder="Full name" class="form-input text-sm" @keyup.enter="saveNewCustomer" />
+          <!-- Customer section -->
+          <div class="px-5 py-4 border-b border-gray-100">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+                <UserIcon class="w-3.5 h-3.5" /> Customer
+              </p>
+              <button @click="showNewCustomer = !showNewCustomer" type="button"
+                class="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors"
+                :class="showNewCustomer ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'">
+                <UserPlusIcon class="w-3 h-3" />
+                {{ showNewCustomer ? 'Cancel' : 'New Customer' }}
+              </button>
             </div>
-            <div>
-              <label class="text-xs text-gray-500 block mb-1">Phone</label>
+
+            <div v-if="showNewCustomer" class="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2 mb-2">
+              <p class="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
+                <UserPlusIcon class="w-3.5 h-3.5" /> Quick Add Customer
+              </p>
+              <input v-model="newCustomer.name" type="text" placeholder="Full name *" class="form-input text-sm" @keyup.enter="saveNewCustomer" />
               <input v-model="newCustomer.phone" type="tel" placeholder="Phone number" class="form-input text-sm" @keyup.enter="saveNewCustomer" />
+              <input v-model="newCustomer.vehicle_number" type="text" placeholder="Vehicle no. e.g. CAB-1234" class="form-input text-sm font-mono uppercase" @keyup.enter="saveNewCustomer" />
+              <p v-if="newCustomerError" class="text-xs text-red-600">{{ newCustomerError }}</p>
+              <button @click="saveNewCustomer" :disabled="savingCustomer || !newCustomer.name.trim()" type="button"
+                class="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-semibold transition-colors">
+                <ArrowPathIcon v-if="savingCustomer" class="w-3.5 h-3.5 animate-spin" />
+                <CheckCircleIcon v-else class="w-3.5 h-3.5" />
+                {{ savingCustomer ? 'Saving…' : 'Save & Select' }}
+              </button>
             </div>
-            <div>
-              <label class="text-xs text-gray-500 block mb-1">Vehicle Number</label>
-              <input v-model="newCustomer.vehicle_number" type="text" placeholder="e.g. CAB-1234" class="form-input text-sm font-mono uppercase" @keyup.enter="saveNewCustomer" />
+
+            <SearchableSelect v-if="!showNewCustomer" v-model="form.customer_id"
+              :options="customerOptions" placeholder="Walk-in / No customer" />
+
+            <div v-if="!showNewCustomer && selectedCustomer"
+              class="flex items-center gap-2 mt-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+              <div class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {{ selectedCustomer.name[0].toUpperCase() }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-blue-800 truncate">{{ selectedCustomer.name }}</p>
+                <p v-if="selectedCustomer.phone" class="text-xs text-blue-400">{{ selectedCustomer.phone }}</p>
+              </div>
             </div>
-            <p v-if="newCustomerError" class="text-xs text-red-600">{{ newCustomerError }}</p>
-            <button @click="saveNewCustomer" :disabled="savingCustomer || !newCustomer.name.trim()" type="button"
-              class="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors">
-              <ArrowPathIcon v-if="savingCustomer" class="w-3.5 h-3.5 animate-spin" />
-              <CheckCircleIcon v-else class="w-3.5 h-3.5" />
-              {{ savingCustomer ? 'Saving…' : 'Save & Select' }}
-            </button>
           </div>
 
-          <!-- Existing customer selector -->
-          <SearchableSelect v-if="!showNewCustomer" v-model="form.customer_id"
-            :options="customerOptions" placeholder="Walk-in / No customer" />
+          <!-- Payment section -->
+          <div class="px-5 py-4 border-b border-gray-100 space-y-3">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+              <CreditCardIcon class="w-3.5 h-3.5" /> Payment
+            </p>
 
-          <!-- Selected customer chip -->
-          <div v-if="!showNewCustomer && selectedCustomer" class="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-1.5">
-            <div class="w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 text-xs font-bold shrink-0">
-              {{ selectedCustomer.name[0].toUpperCase() }}
-            </div>
-            <div class="min-w-0">
-              <p class="text-xs font-semibold text-blue-800 truncate">{{ selectedCustomer.name }}</p>
-              <p v-if="selectedCustomer.phone" class="text-xs text-blue-500">{{ selectedCustomer.phone }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Payment -->
-        <div class="card space-y-3">
-          <h3 class="font-semibold text-gray-700 flex items-center gap-2 mb-1">
-            <CreditCardIcon class="w-4 h-4 text-green-500" /> Payment
-          </h3>
-          <div class="grid grid-cols-3 gap-3">
-            <div>
-              <label class="form-label">Sale Type</label>
-              <select v-model="form.sale_type" class="form-input" @change="onSaleTypeChange">
-                <option value="instant">Instant</option>
-                <option value="booking">Booking</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label">Method</label>
-              <select v-model="form.payment_method" class="form-input">
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-              </select>
-            </div>
-            <div>
-              <label class="form-label">Status</label>
-              <select v-model="form.payment_status" class="form-input" @change="onPaymentStatusChange">
-                <option value="paid">Paid</option>
-                <option value="pending">Pending</option>
-                <option value="partial">Partial</option>
-              </select>
-            </div>
-          </div>
-          <div v-if="form.sale_type === 'booking'">
-            <label class="form-label">Booking Expiry (max 3 months)</label>
-            <input v-model="form.booking_expires_at" type="date" class="form-input" />
-          </div>
-          <div>
-            <label class="form-label">Overall Discount (LKR)</label>
-            <input v-model.number="form.discount" type="number" min="0" class="form-input" @input="recalc" />
-          </div>
-
-          <!-- Tax -->
-          <div class="border-t pt-3">
-            <label class="form-label flex items-center gap-1.5 mb-2">
-              <CalculatorIcon class="w-3.5 h-3.5 text-gray-400" /> Tax
-            </label>
             <div class="grid grid-cols-3 gap-2">
               <div>
-                <label class="text-xs text-gray-400">Preset</label>
-                <select v-model="selectedTaxId" class="form-input mt-1" @change="applyTax">
-                  <option value="">No Tax</option>
-                  <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }} ({{ t.rate }}%)</option>
+                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Type</label>
+                <select v-model="form.sale_type" class="form-input text-sm" @change="onSaleTypeChange">
+                  <option value="instant">Instant</option>
+                  <option value="booking">Booking</option>
                 </select>
               </div>
               <div>
-                <label class="text-xs text-gray-400">Rate (%)</label>
-                <input v-model.number="form.tax_rate" type="number" min="0" step="0.01" class="form-input mt-1" @input="recalc" />
+                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Method</label>
+                <select v-model="form.payment_method" class="form-input text-sm">
+                  <option value="cash">Cash</option>
+                  <option value="card">Card</option>
+                  <option value="bank_transfer">Bank Tfr</option>
+                  <option value="cheque">Cheque</option>
+                </select>
               </div>
               <div>
-                <label class="text-xs text-gray-400">Amount (LKR)</label>
-                <input v-model.number="form.tax" type="number" class="form-input mt-1 bg-gray-50 text-gray-500" readonly />
+                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Status</label>
+                <select v-model="form.payment_status" class="form-input text-sm" @change="onPaymentStatusChange">
+                  <option value="paid">Paid</option>
+                  <option value="pending">Pending</option>
+                  <option value="partial">Partial</option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="form.sale_type === 'booking'">
+              <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Booking Expiry</label>
+              <input v-model="form.booking_expires_at" type="date" class="form-input text-sm" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Discount (LKR)</label>
+                <input v-model.number="form.discount" type="number" min="0" class="form-input text-sm" @input="recalc" />
+              </div>
+              <div>
+                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Service Charge</label>
+                <input v-model.number="form.maintenance_amount" type="number" min="0" class="form-input text-sm" @input="recalc" />
+              </div>
+            </div>
+
+            <!-- Tax -->
+            <div class="bg-gray-50 rounded-xl p-3 space-y-2">
+              <p class="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1.5">
+                <CalculatorIcon class="w-3 h-3" /> Tax
+              </p>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="text-[10px] text-gray-400 mb-1 block">Preset</label>
+                  <select v-model="selectedTaxId" class="form-input text-xs" @change="applyTax">
+                    <option value="">No Tax</option>
+                    <option v-for="t in taxes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] text-gray-400 mb-1 block">Rate %</label>
+                  <input v-model.number="form.tax_rate" type="number" min="0" step="0.01" class="form-input text-xs" @input="recalc" />
+                </div>
+                <div>
+                  <label class="text-[10px] text-gray-400 mb-1 block">Amount</label>
+                  <input v-model.number="form.tax" type="number" class="form-input text-xs bg-gray-100 text-gray-500" readonly />
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Maintenance -->
-          <div class="border-t pt-3">
-            <label class="form-label flex items-center gap-1.5 mb-1">
-              <WrenchScrewdriverIcon class="w-3.5 h-3.5 text-gray-400" /> Maintenance / Service Charge (LKR)
-            </label>
-            <input v-model.number="form.maintenance_amount" type="number" min="0" class="form-input" @input="recalc" />
-          </div>
         </div>
 
-        <!-- Order total card (dark) -->
-        <div class="card bg-gray-800 text-white">
-          <h3 class="text-xs uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-            <ReceiptPercentIcon class="w-3.5 h-3.5" /> Order Summary
-          </h3>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between">
-              <span class="text-gray-400">Subtotal</span>
-              <span class="font-medium">LKR {{ lkr(subtotal) }}</span>
+        <!-- Pinned Order Summary -->
+        <div class="shrink-0 text-white">
+          <!-- Breakdown row -->
+          <div class="px-5 py-3 bg-indigo-950 space-y-1.5 text-sm">
+            <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <ReceiptPercentIcon class="w-3.5 h-3.5" /> Order Summary
+            </p>
+            <div class="flex justify-between text-indigo-300">
+              <span>Subtotal</span>
+              <span class="font-medium text-white">LKR {{ lkr(subtotal) }}</span>
             </div>
             <div v-if="form.discount > 0" class="flex justify-between">
-              <span class="text-gray-400">Discount</span>
-              <span class="text-red-400">-LKR {{ lkr(form.discount) }}</span>
+              <span class="text-indigo-300">Discount</span>
+              <span class="text-red-300 font-medium">−LKR {{ lkr(form.discount) }}</span>
             </div>
             <div v-if="form.tax > 0" class="flex justify-between">
-              <span class="text-gray-400">Tax ({{ form.tax_rate }}%)</span>
-              <span class="text-blue-300">+LKR {{ lkr(form.tax) }}</span>
+              <span class="text-indigo-300">Tax ({{ form.tax_rate }}%)</span>
+              <span class="text-blue-300 font-medium">+LKR {{ lkr(form.tax) }}</span>
             </div>
             <div v-if="form.maintenance_amount > 0" class="flex justify-between">
-              <span class="text-gray-400">Maintenance</span>
-              <span class="text-yellow-300">+LKR {{ lkr(form.maintenance_amount) }}</span>
-            </div>
-            <div class="border-t border-gray-600 pt-2 flex justify-between text-lg font-bold">
-              <span>Total</span>
-              <span class="text-blue-400">LKR {{ lkr(total) }}</span>
+              <span class="text-indigo-300">Service Charge</span>
+              <span class="text-yellow-300 font-medium">+LKR {{ lkr(form.maintenance_amount) }}</span>
             </div>
           </div>
-
-          <div class="mt-3 pt-3 border-t border-gray-600">
-            <label class="text-xs text-gray-400 mb-1 block">Amount Paid (LKR)</label>
-            <input v-model.number="form.amount_paid" type="number" min="0"
-              class="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-          </div>
-          <div v-if="form.payment_status === 'partial' && form.amount_paid < total"
-            class="mt-2 text-xs text-yellow-300 bg-yellow-900/40 rounded px-2 py-1.5 flex items-center gap-1.5">
-            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
-            Balance due: LKR {{ lkr(total - form.amount_paid) }}
-          </div>
-          <div v-if="form.payment_status === 'paid' && form.amount_paid > total"
-            class="mt-2 text-xs text-green-300 bg-green-900/40 rounded px-2 py-1.5 flex items-center gap-1.5">
-            Change to return: LKR {{ lkr(form.amount_paid - total) }}
+          <!-- Grand total + amount paid row -->
+          <div class="px-5 py-3 bg-indigo-900 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-indigo-300">Grand Total</span>
+              <span class="text-xl font-black text-white">LKR {{ lkr(total) }}</span>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 block">Amount Paid (LKR)</label>
+              <input v-model.number="form.amount_paid" type="number" min="0"
+                class="w-full bg-indigo-950 text-white border border-indigo-700 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400" />
+            </div>
+            <div v-if="form.payment_status === 'partial' && form.amount_paid < total"
+              class="text-xs text-yellow-300 bg-yellow-900/40 border border-yellow-800/40 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
+              Balance due: LKR {{ lkr(total - form.amount_paid) }}
+            </div>
+            <div v-if="form.payment_status === 'paid' && form.amount_paid > total"
+              class="text-xs text-green-300 bg-green-900/40 border border-green-800/40 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <CheckCircleIcon class="w-3.5 h-3.5 shrink-0" />
+              Change to return: LKR {{ lkr(form.amount_paid - total) }}
+            </div>
           </div>
         </div>
 
-        <!-- Error -->
-        <p v-if="error" class="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-2">
-          <ExclamationTriangleIcon class="w-4 h-4 shrink-0" /> {{ error }}
-        </p>
-
-        <!-- Submit button -->
-        <button @click="submit(false)" :disabled="saving || !form.items.length"
-          class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-base shadow-md transition-colors">
-          <CheckCircleIcon v-if="!saving" class="w-5 h-5" />
-          <ArrowPathIcon v-else class="w-5 h-5 animate-spin" />
-          {{ saving ? 'Processing…' : 'Complete Sale' }}
-        </button>
-
-        <!-- Save as Draft button -->
-        <button @click="submit(true)" :disabled="saving || !form.items.length"
-          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-700 hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm shadow transition-colors">
-          <DocumentTextIcon class="w-4 h-4" />
-          {{ saving ? 'Saving…' : 'Save as Draft' }}
-        </button>
-
-        <p class="text-center text-xs text-gray-400">
-          {{ form.items.length }} item{{ form.items.length !== 1 ? 's' : '' }} · Total: LKR {{ lkr(total) }}
-        </p>
+        <!-- Pinned action buttons -->
+        <div class="px-5 py-4 border-t border-gray-200 bg-white space-y-2 shrink-0">
+          <p v-if="error" class="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-1.5">
+            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ error }}
+          </p>
+          <button @click="submit(false)" :disabled="saving || !form.items.length"
+            class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm shadow-sm transition-colors">
+            <CheckCircleIcon v-if="!saving" class="w-5 h-5" />
+            <ArrowPathIcon v-else class="w-5 h-5 animate-spin" />
+            {{ saving ? 'Processing…' : 'Complete Sale' }}
+          </button>
+          <button @click="submit(true)" :disabled="saving || !form.items.length"
+            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-colors">
+            <DocumentTextIcon class="w-4 h-4" />
+            {{ saving ? 'Saving…' : 'Save as Draft' }}
+          </button>
+        </div>
       </div>
+
     </div>
   </div>
 </template>

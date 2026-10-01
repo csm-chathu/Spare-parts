@@ -15,6 +15,8 @@ const routes = [
         children: [
             { path: '',          name: 'dashboard',  component: () => import('@/pages/Dashboard.vue') },
             { path: 'products',    name: 'products',    component: () => import('@/pages/Products.vue') },
+            { path: 'job-cards',        name: 'job-cards',       component: () => import('@/pages/JobCards.vue') },
+            { path: 'job-cards/:id',    name: 'job-cards.detail',component: () => import('@/pages/JobCardDetail.vue') },
             { path: 'master-data', name: 'master-data', component: () => import('@/pages/MasterData.vue') },
             { path: 'customers', name: 'customers',  component: () => import('@/pages/Customers.vue') },
             { path: 'suppliers', name: 'suppliers',  component: () => import('@/pages/Suppliers.vue') },
@@ -62,6 +64,16 @@ const routes = [
         path: '/receipt/:token',
         name: 'public-receipt',
         component: () => import('@/pages/PublicSaleReceipt.vue'),
+    },
+    {
+        path: '/job/:token',
+        name: 'job-card-public',
+        component: () => import('@/pages/JobCardPublic.vue'),
+    },
+    {
+        path: '/job/:token/invoice',
+        name: 'job-card-invoice',
+        component: () => import('@/pages/JobCardInvoice.vue'),
     },
     { path: '/:pathMatch(.*)*', redirect: '/' },
 ]

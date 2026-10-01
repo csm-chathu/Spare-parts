@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Bump base font from 16px → 18px so all rem-based Tailwind sizes scale up by ~2px */
+html {
+    font-size: 18px;
+}
+
 @layer components {
     .btn-primary {
         @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50;

@@ -64,6 +64,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(CaratSeeder::class);
         $this->call(SparePartsStructureSeeder::class);
+        $this->call(FeatureSeeder::class);
 
         $categories = [
             ['name' => 'Engine Parts',      'slug' => 'engine-parts'],

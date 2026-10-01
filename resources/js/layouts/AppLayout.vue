@@ -17,80 +17,23 @@
         </div>
       </div>
 
-      <!-- Nav -->
+      <!-- Nav (DB-driven, grouped by feature.group) -->
       <nav class="flex-1 py-4 overflow-y-auto">
-        <template v-if="visibleNavItems.length">
-          <div class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Main</div>
-        </template>
-        <router-link v-for="item in visibleNavItems" :key="item.to" :to="item.to"
-          class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-          :class="isNavActive(item.to)
-            ? 'bg-blue-600 text-white hover:bg-blue-700'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
-          <component :is="item.icon" class="w-5 h-5 shrink-0" />
-          {{ item.label }}
-        </router-link>
-
-        <!-- Purchasing section -->
-        <template v-if="visiblePurchasingNavItems.length">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Purchasing</div>
-          <router-link v-for="item in visiblePurchasingNavItems" :key="item.to" :to="item.to"
-            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-            :class="isNavActive(item.to)
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
-            <component :is="item.icon" class="w-5 h-5 shrink-0" />
-            {{ item.label }}
-          </router-link>
-        </template>
-
-        <!-- Admin/Role-based sections -->
-        <template v-if="visibleAdminNavItems.length">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</div>
-          <router-link v-for="item in visibleAdminNavItems" :key="item.to" :to="item.to"
-            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-            :class="isNavActive(item.to)
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
-            <component :is="item.icon" class="w-5 h-5 shrink-0" />
-            {{ item.label }}
-          </router-link>
-        </template>
-
-        <template v-if="visibleAccountingNavItems.length">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Accounting</div>
-          <router-link v-for="item in visibleAccountingNavItems" :key="item.to" :to="item.to"
-            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-            :class="isNavActive(item.to)
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
-            <component :is="item.icon" class="w-5 h-5 shrink-0" />
-            {{ item.label }}
-          </router-link>
-        </template>
-
-        <template v-if="visibleHrNavItems.length">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Human Resources</div>
-          <router-link v-for="item in visibleHrNavItems" :key="item.to" :to="item.to"
-            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-            :class="isNavActive(item.to)
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
-            <component :is="item.icon" class="w-5 h-5 shrink-0" />
-            {{ item.label }}
-          </router-link>
-        </template>
-
-        <template v-if="visibleFinanceNavItems.length">
-          <div class="px-4 mt-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Finance</div>
-          <router-link v-for="item in visibleFinanceNavItems" :key="item.to" :to="item.to"
-            class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
-            :class="isNavActive(item.to)
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
-            <component :is="item.icon" class="w-5 h-5 shrink-0" />
-            {{ item.label }}
-          </router-link>
+        <template v-for="group in navGroups" :key="group.key">
+          <template v-if="group.items.length">
+            <div class="px-4 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider"
+              :class="group.key !== 'general' ? 'mt-4' : ''">
+              {{ group.label }}
+            </div>
+            <router-link v-for="item in group.items" :key="item.route" :to="item.route"
+              class="flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm transition-colors"
+              :class="isNavActive(item.route)
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'text-gray-300 hover:bg-gray-800 hover:text-white'">
+              <component :is="iconMap[item.icon]" class="w-5 h-5 shrink-0" />
+              {{ item.label }}
+            </router-link>
+          </template>
         </template>
       </nav>
 
@@ -162,66 +105,37 @@ const branding = ref({
   logo_url: '',
 })
 
-const ALL_STANDARD = ['admin', 'manager', 'accountant', 'hr', 'finance', 'cashier', 'branch', 'auditor']
-
-const navItems = [
-  { to: '/',           label: 'Dashboard',  icon: HomeIcon,          roles: ALL_STANDARD },
-  { to: '/products',    label: 'Parts Inventory', icon: CubeIcon,         roles: ALL_STANDARD },
-  { to: '/master-data', label: 'Master Data',    icon: CircleStackIcon,  roles: ['admin', 'manager'] },
-  { to: '/customers',   label: 'Customers',      icon: UsersIcon,        roles: ALL_STANDARD },
-  { to: '/suppliers',  label: 'Suppliers',  icon: TruckIcon,          roles: ALL_STANDARD },
-  { to: '/sales',      label: 'Sales',      icon: ShoppingCartIcon,  roles: ALL_STANDARD },
-]
-
-const purchasingNavItems = [
-  { to: '/purchase-orders',   label: 'Purchase Orders',   icon: ClipboardDocumentIcon,       roles: ALL_STANDARD },
-  { to: '/grn',               label: 'GRN',               icon: InboxArrowDownIcon,           roles: ALL_STANDARD },
-  { to: '/goods-invoices',    label: 'Goods Invoices',    icon: DocumentCurrencyDollarIcon,   roles: ALL_STANDARD },
-  { to: '/supplier-payments', label: 'Supplier Payments', icon: CreditCardIcon,               roles: ALL_STANDARD },
-  { to: '/purchase-returns',  label: 'Purchase Returns',  icon: ArrowUturnLeftIcon,           roles: ALL_STANDARD },
-  { to: '/stock-ledger',      label: 'Stock Ledger',      icon: ChartBarSquareIcon,           roles: ALL_STANDARD },
-]
-
-const adminNavItems = [
-  { to: '/reports', label: 'Reports', icon: ChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor', 'finance'] },
-  { to: '/day-end', label: 'Day End', icon: ClipboardDocumentCheckIcon, roles: ['admin', 'manager', 'cashier', 'branch'] },
-  { to: '/audit-log', label: 'Audit Log', icon: ClipboardDocumentListIcon, roles: ['admin'] },
-  { to: '/users', label: 'Users', icon: UserGroupIcon, roles: ['admin'] },
-  { to: '/shop-settings', label: 'Shop Settings', icon: Cog6ToothIcon, roles: ['admin', 'manager'] },
-  { to: '/expenses', label: 'Expenses', icon: ReceiptPercentIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
-  { to: '/sms', label: 'SMS Centre', icon: DevicePhoneMobileIcon, roles: ['admin', 'manager'] },
-]
-
-const hrNavItems = [
-  { to: '/employees', label: 'Employees', icon: UserGroupIcon, roles: ['admin', 'manager', 'hr'] },
-  { to: '/salary-payments', label: 'Salary Payments', icon: BanknotesIcon, roles: ['admin', 'manager', 'hr'] },
-]
-
-const financeNavItems = [
-  { to: '/loans',               label: 'Business Loans',    icon: BuildingLibraryIcon, roles: ['admin', 'manager', 'finance', 'auditor'] },
-  { to: '/customer-investments',label: 'Owner Investments', icon: CurrencyDollarIcon,  roles: ['admin', 'manager', 'finance'] },
-  { to: '/rentals',             label: 'Monthly Rentals',   icon: HomeModernIcon,      roles: ['admin', 'manager', 'finance', 'auditor'] },
-]
-
-const accountingNavItems = [
-  { to: '/opening-balances', label: 'Opening Balances', icon: ScaleIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
-  { to: '/accounts', label: 'Chart of Accounts', icon: BookOpenIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
-  { to: '/journal-entries', label: 'Journal Entries', icon: DocumentTextIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
-  { to: '/general-ledger', label: 'General Ledger', icon: PresentationChartBarIcon, roles: ['admin', 'manager', 'accountant', 'auditor'] },
-]
-
-const currentRole = computed(() => auth.user?.role ?? 'branch')
-
-function isAllowed(item) {
-  return item.roles.includes(currentRole.value)
+// Icon name → component map (keeps icons tree-shakeable)
+const iconMap = {
+  HomeIcon, CubeIcon, UsersIcon, CircleStackIcon, TruckIcon, ShoppingCartIcon,
+  ClipboardDocumentIcon, InboxArrowDownIcon, DocumentCurrencyDollarIcon,
+  CreditCardIcon, ArrowUturnLeftIcon, ChartBarSquareIcon,
+  ChartBarIcon, ClipboardDocumentCheckIcon, ClipboardDocumentListIcon,
+  UserGroupIcon, Cog6ToothIcon, ReceiptPercentIcon, DevicePhoneMobileIcon,
+  BanknotesIcon, BuildingLibraryIcon, CurrencyDollarIcon, HomeModernIcon,
+  ScaleIcon, BookOpenIcon, DocumentTextIcon, PresentationChartBarIcon,
+  WrenchScrewdriverIcon,
 }
 
-const visibleNavItems = computed(() => navItems.filter(isAllowed))
-const visiblePurchasingNavItems = computed(() => purchasingNavItems.filter(isAllowed))
-const visibleAdminNavItems = computed(() => adminNavItems.filter(isAllowed))
-const visibleAccountingNavItems = computed(() => accountingNavItems.filter(isAllowed))
-const visibleHrNavItems = computed(() => hrNavItems.filter(isAllowed))
-const visibleFinanceNavItems = computed(() => financeNavItems.filter(isAllowed))
+const GROUP_LABELS = {
+  general:    'Main',
+  purchasing: 'Purchasing',
+  admin:      'Admin',
+  hr:         'Human Resources',
+  finance:    'Finance',
+  accounting: 'Accounting',
+}
+
+const GROUP_ORDER = ['general', 'purchasing', 'admin', 'hr', 'finance', 'accounting']
+
+const navGroups = computed(() => {
+  const features = auth.features ?? []
+  return GROUP_ORDER.map(key => ({
+    key,
+    label: GROUP_LABELS[key],
+    items: features.filter(f => f.group === key),
+  }))
+})
 
 const pageTitles = {
   dashboard:              'Dashboard',
@@ -256,6 +170,8 @@ const pageTitles = {
   rentals:                'Monthly Rentals',
   'customer-investments': 'Owner Investments',
   'getting-started':      'Getting Started',
+  'job-cards':            'Job Cards',
+  'job-cards.detail':     'Job Card Detail',
 }
 
 const pageTitle  = computed(() => pageTitles[route.name] ?? 'Siril Motors')
@@ -272,6 +188,11 @@ onMounted(async () => {
     }
   } catch {
     // Keep fallback branding if API is unavailable.
+  }
+
+  // Refresh features on page reload (already cached in localStorage, but sync with server)
+  if (auth.token) {
+    auth.fetchFeatures().catch(() => {})
   }
 })
 

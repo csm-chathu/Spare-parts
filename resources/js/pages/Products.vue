@@ -40,7 +40,6 @@
               <th class="table-th">Part Number</th>
               <th class="table-th">Part Name</th>
               <th class="table-th">Vehicle / Brand / Model</th>
-              <th class="table-th">Quality</th>
               <th class="table-th">Rack</th>
               <th class="table-th">Stock</th>
               <th class="table-th">Price</th>
@@ -59,7 +58,6 @@
                   </div>
                 </td>
                 <td class="table-td"><div class="h-3 bg-gray-200 rounded w-28"></div></td>
-                <td class="table-td"><div class="h-3 bg-gray-200 rounded w-16"></div></td>
                 <td class="table-td"><div class="h-3 bg-gray-200 rounded w-12"></div></td>
                 <td class="table-td"><div class="h-5 bg-gray-200 rounded-full w-10"></div></td>
                 <td class="table-td">
@@ -84,12 +82,14 @@
                 </div>
               </td>
               <td class="table-td text-xs text-gray-600">
-                <span v-if="p.vehicle_type">{{ p.vehicle_type.name }}</span>
-                <span v-if="p.brand"> · {{ p.brand.name }}</span>
-                <span v-if="p.model"> · {{ p.model.name }}</span>
-                <span v-if="!p.vehicle_type && !p.brand && !p.model">—</span>
+                <div>
+                  <span v-if="p.vehicle_type">{{ p.vehicle_type.name }}</span>
+                  <span v-if="p.brand"> · {{ p.brand.name }}</span>
+                  <span v-if="p.model"> · {{ p.model.name }}</span>
+                  <span v-if="!p.vehicle_type && !p.brand && !p.model">—</span>
+                </div>
+                <div v-if="p.quality_type" class="text-[10px] text-gray-400 mt-0.5">{{ p.quality_type.name }}</div>
               </td>
-              <td class="table-td text-xs text-gray-600">{{ p.quality_type?.name || '—' }}</td>
               <td class="table-td text-xs font-mono text-gray-500">{{ p.rack_location || '—' }}</td>
               <td class="table-td">
                 <span :class="p.stock_quantity <= p.min_stock_level ? 'badge bg-red-100 text-red-700' : 'badge bg-green-100 text-green-700'">
