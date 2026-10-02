@@ -148,7 +148,7 @@
             </div>
             <div v-for="item in sale.items" :key="item.id" style="margin-bottom:5px;">
               <div style="display:flex; align-items:baseline;">
-                <span style="flex:1; font-weight:bold; word-break:break-word; padding-right:4px;">{{ item.product?.name ?? 'Unknown' }}</span>
+                <span style="flex:1; font-weight:bold; word-break:break-word; padding-right:4px;">{{ item.description || item.product?.name || 'Item' }}</span>
                 <span style="width:28px; text-align:center;">{{ item.quantity }}</span>
                 <span style="width:54px; text-align:right;">{{ lkr(item.unit_price) }}</span>
                 <span style="width:58px; text-align:right; font-weight:bold;">{{ lkr(item.total) }}</span>

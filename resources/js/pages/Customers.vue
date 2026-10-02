@@ -29,7 +29,13 @@
               <span v-else-if="c.id_number" class="badge bg-yellow-100 text-yellow-700 text-xs">ID on file</span>
               <span v-else class="text-gray-300 text-xs">—</span>
             </td>
-            <td class="table-td">{{ c.sales_count }}</td>
+            <td class="table-td">
+              <button v-if="c.sales_count > 0" @click="openSales(c)"
+                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-600 hover:text-white transition-colors">
+                {{ c.sales_count }} · View invoices
+              </button>
+              <span v-else class="text-gray-300 text-xs">0</span>
+            </td>
             <td class="table-td"><div class="flex gap-2">
             <button @click="openEdit(c)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200">
               <PencilSquareIcon class="w-3.5 h-3.5" /> Edit
@@ -202,6 +208,79 @@
 
         </div>
       </div>
+    <!-- Customer Sales Modal -->
+    <div v-if="salesModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @click.self="salesModal=false">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <div>
+            <h3 class="text-base font-bold text-gray-800">Invoices — {{ salesCustomer?.name }}</h3>
+            <p class="text-xs text-gray-400 mt-0.5">{{ salesCustomer?.phone }} · {{ customerSales.length }} invoice{{ customerSales.length !== 1 ? 's' : '' }}</p>
+          </div>
+          <button @click="salesModal=false" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="salesLoading" class="flex-1 flex items-center justify-center py-16 text-gray-400">
+          <svg class="w-5 h-5 animate-spin mr-2" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+          Loading invoices…
+        </div>
+
+        <!-- Table -->
+        <div v-else class="flex-1 overflow-y-auto">
+          <table class="w-full">
+            <thead class="bg-gray-50 border-b sticky top-0">
+              <tr>
+                <th class="table-th">Invoice</th>
+                <th class="table-th">Date</th>
+                <th class="table-th text-right">Total</th>
+                <th class="table-th text-right">Paid</th>
+                <th class="table-th text-right">Balance</th>
+                <th class="table-th">Method</th>
+                <th class="table-th">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr v-for="s in customerSales" :key="s.id" class="hover:bg-gray-50">
+                <td class="table-td">
+                  <router-link :to="`/sales/${s.id}`" @click="salesModal=false"
+                    class="font-mono text-xs font-semibold text-blue-700 hover:underline">
+                    {{ s.invoice_number }}
+                  </router-link>
+                </td>
+                <td class="table-td text-xs text-gray-500">{{ fmtDate(s.sold_at) }}</td>
+                <td class="table-td text-right font-semibold text-gray-800">{{ lkr(s.total) }}</td>
+                <td class="table-td text-right text-green-600">{{ lkr(s.amount_paid) }}</td>
+                <td class="table-td text-right font-bold"
+                  :class="s.total - s.amount_paid > 0.01 ? 'text-red-600' : 'text-gray-300'">
+                  {{ s.total - s.amount_paid > 0.01 ? lkr(s.total - s.amount_paid) : '—' }}
+                </td>
+                <td class="table-td text-xs capitalize text-gray-500">{{ s.payment_method?.replace('_', ' ') }}</td>
+                <td class="table-td">
+                  <span class="badge capitalize text-xs"
+                    :class="{ 'bg-green-100 text-green-700': s.payment_status==='paid', 'bg-yellow-100 text-yellow-700': s.payment_status==='pending', 'bg-blue-100 text-blue-700': s.payment_status==='partial', 'bg-red-100 text-red-700': s.payment_status==='refunded' }">
+                    {{ s.payment_status }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="!customerSales.length">
+                <td colspan="7" class="table-td text-center text-gray-400 py-8">No invoices found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer totals -->
+        <div v-if="!salesLoading && customerSales.length" class="shrink-0 border-t px-6 py-3 bg-gray-50 rounded-b-2xl flex items-center gap-6 text-sm">
+          <span class="text-gray-400">Total Revenue</span>
+          <span class="font-bold text-gray-800">LKR {{ lkr(customerSales.reduce((s,i) => s + Number(i.total), 0)) }}</span>
+          <span class="text-gray-300">|</span>
+          <span class="text-gray-400">Outstanding</span>
+          <span class="font-bold text-red-600">LKR {{ lkr(customerSales.reduce((s,i) => s + Math.max(0, Number(i.total) - Number(i.amount_paid)), 0)) }}</span>
+        </div>
+      </div>
+    </div>
     </teleport>
   </div>
 </template>
@@ -210,11 +289,37 @@
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/vue/24/outline'
+import { fmtDate } from '../utils/date.js'
 
 const customers = ref({ data: [] })
 const search    = ref(''); const page = ref(1)
 const showModal = ref(false); const editing = ref(null)
 const saving    = ref(false); const error   = ref('')
+
+// Sales modal
+const salesModal    = ref(false)
+const salesCustomer = ref(null)
+const customerSales = ref([])
+const salesLoading  = ref(false)
+
+function lkr(v) {
+  return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+async function openSales(c) {
+  salesCustomer.value = c
+  salesModal.value    = true
+  salesLoading.value  = true
+  customerSales.value = []
+  try {
+    const { data } = await axios.get('/api/sales', {
+      params: { customer_id: c.id, per_page: 100 }
+    })
+    customerSales.value = data.data ?? []
+  } finally {
+    salesLoading.value = false
+  }
+}
 const form      = reactive({ name:'',email:'',phone:'',vehicle_number:'',address:'',city:'',country:'',date_of_birth:'',gender:'',notes:'', id_type:'',id_number:'',id_expiry:'',kyc_verified:false,kyc_notes:'' })
 
 let debounceTimer = null

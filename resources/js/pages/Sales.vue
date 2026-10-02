@@ -81,14 +81,14 @@
           <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th class="table-th w-36">Invoice</th>
-              <th class="table-th">Customer</th>
+              <th class="table-th w-48">Customer</th>
               <th class="table-th w-28">Vehicle No.</th>
               <th class="table-th w-28">Date</th>
               <th class="table-th w-36 text-right">Total</th>
               <th class="table-th w-32">Payment</th>
               <th class="table-th w-24">Delivery</th>
               <th class="table-th w-24">Status</th>
-              <th class="table-th w-28 text-center">Actions</th>
+              <th class="table-th w-28 text-right">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
@@ -152,8 +152,8 @@
                 <td class="table-td">
                   <span :class="statusClass(s.payment_status)" class="badge capitalize">{{ s.payment_status }}</span>
                 </td>
-                <td class="table-td text-center">
-                  <div class="flex items-center justify-center gap-1.5">
+                <td class="table-td text-right">
+                  <div class="flex items-center justify-end gap-1.5">
                     <router-link :to="s.is_draft ? `/sales/${s.id}/edit` : `/sales/${s.id}`"
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium hover:bg-opacity-80 transition-colors"
                       :class="s.is_draft ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'">
@@ -165,14 +165,14 @@
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
                       <CheckCircleIcon class="w-3.5 h-3.5" /> Finalize
                     </button>
+                    <button v-if="!s.is_draft && ['partial','pending'].includes(s.payment_status)"
+                      @click="openSettle(s)"
+                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
+                      <BanknotesIcon class="w-3.5 h-3.5" /> Settle
+                    </button>
                     <button @click="del(s)"
                       class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200">
                       <TrashIcon class="w-3.5 h-3.5" />
-                    </button>
-                    <button v-if="!s.is_draft && s.sale_type === 'booking' && s.delivery_status === 'booked'"
-                      @click="openSettle(s)"
-                      class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200">
-                      Settle
                     </button>
                   </div>
                 </td>
@@ -211,32 +211,76 @@
       </div>
     </div>
 
-    <div v-if="settleModal" class="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center">
-      <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h3 class="font-semibold text-gray-800">Settle Booking</h3>
-        <p class="text-sm text-gray-500">Invoice {{ settleSale?.invoice_number }} · Remaining: LKR {{ settleRemaining }}</p>
-        <div>
-          <label class="form-label">Payment Method</label>
-          <select v-model="settleForm.payment_method" class="form-input">
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-            <option value="bank_transfer">Bank Transfer</option>
-            <option value="cheque">Cheque</option>
-            <option value="other">Other</option>
-          </select>
+    <!-- Settle Payment Modal -->
+    <div v-if="settleModal" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="font-bold text-gray-800">Settle Payment</p>
+          <p class="text-xs text-gray-400 mt-0.5">{{ settleSale?.invoice_number }} · {{ settleSale?.customer?.name ?? 'Walk-in' }}</p>
         </div>
-        <div>
-          <label class="form-label">Payment Amount</label>
-          <input v-model.number="settleForm.payment_amount" type="number" min="0" step="0.01" class="form-input" />
+
+        <div class="px-6 py-4 space-y-4">
+          <!-- Balance summary -->
+          <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 grid grid-cols-3 gap-3 text-center text-xs">
+            <div>
+              <p class="text-gray-400 mb-0.5">Total</p>
+              <p class="font-bold text-gray-800">{{ lkr(settleSale?.total) }}</p>
+            </div>
+            <div>
+              <p class="text-gray-400 mb-0.5">Already Paid</p>
+              <p class="font-bold text-green-600">{{ lkr(settleSale?.amount_paid) }}</p>
+            </div>
+            <div>
+              <p class="text-gray-400 mb-0.5">Balance Due</p>
+              <p class="font-bold text-red-600">{{ settleRemaining }}</p>
+            </div>
+          </div>
+
+          <!-- Method -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Payment Method</label>
+            <select v-model="settleForm.payment_method" class="form-input">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <!-- Amount received -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Amount Received (LKR)</label>
+            <input v-model.number="settleForm.amount_received" type="number" min="0" step="0.01"
+              @focus="$event.target.select()" class="form-input text-lg font-bold" />
+          </div>
+
+          <!-- Change due -->
+          <div v-if="settleChange > 0" class="bg-green-50 border border-green-200 rounded-xl px-4 py-2 flex items-center justify-between text-sm">
+            <span class="text-green-700 font-medium">Change to return</span>
+            <span class="font-black text-green-700">LKR {{ lkr(settleChange) }}</span>
+          </div>
+          <div v-else-if="settleShort > 0" class="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2 flex items-center justify-between text-sm">
+            <span class="text-yellow-700 font-medium">Still outstanding</span>
+            <span class="font-black text-yellow-700">LKR {{ lkr(settleShort) }}</span>
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Notes (optional)</label>
+            <input v-model="settleForm.notes" type="text" class="form-input text-sm" placeholder="e.g. Cash received at counter" />
+          </div>
+
+          <p v-if="settleError" class="text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">{{ settleError }}</p>
         </div>
-        <div>
-          <label class="form-label">Delivered At</label>
-          <input v-model="settleForm.delivered_at" type="datetime-local" class="form-input" />
-        </div>
-        <p v-if="settleError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded">{{ settleError }}</p>
-        <div class="flex justify-end gap-2">
-          <button @click="settleModal = false" class="btn-secondary">Cancel</button>
-          <button @click="submitSettle" class="btn-primary" :disabled="settling">{{ settling ? 'Posting…' : 'Settle & Deliver' }}</button>
+
+        <div class="px-6 py-4 border-t border-gray-100 flex gap-2 justify-end">
+          <button @click="settleModal = false" class="px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold">Cancel</button>
+          <button @click="submitSettle" :disabled="settling || !settleForm.amount_received"
+            class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-bold transition-colors">
+            {{ settling ? 'Saving…' : 'Confirm Payment' }}
+          </button>
         </div>
       </div>
     </div>
@@ -245,7 +289,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import {
   PlusIcon, TrashIcon, EyeIcon, MagnifyingGlassIcon,
@@ -256,6 +300,7 @@ import {
 import { fmtDate } from '../utils/date.js'
 
 const router       = useRouter()
+const route        = useRoute()
 const sales        = ref({ data: [] })
 const search       = ref('')
 const page         = ref(1)
@@ -266,7 +311,7 @@ const typeFilter   = ref('')
 const loading      = ref(false)
 const settleModal  = ref(false)
 const settleSale   = ref(null)
-const settleForm   = ref({ payment_method: 'cash', payment_amount: 0, delivered_at: '' })
+const settleForm   = ref({ payment_method: 'cash', amount_received: 0, notes: '' })
 const settleError  = ref('')
 const settling     = ref(false)
 
@@ -336,17 +381,23 @@ function deliveryClass(s) {
   }[s] ?? 'bg-gray-100 text-gray-700'
 }
 
-const settleRemaining = computed(() => {
-  if (!settleSale.value) return '0.00'
-  return Number(Math.max(0, Number(settleSale.value.total) - Number(settleSale.value.amount_paid))).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-})
+function lkr(v) {
+  return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const settleBalanceDue = computed(() =>
+  Math.max(0, Number(settleSale.value?.total ?? 0) - Number(settleSale.value?.amount_paid ?? 0))
+)
+const settleRemaining = computed(() => lkr(settleBalanceDue.value))
+const settleChange    = computed(() => Math.max(0, (settleForm.value.amount_received || 0) - settleBalanceDue.value))
+const settleShort     = computed(() => Math.max(0, settleBalanceDue.value - (settleForm.value.amount_received || 0)))
 
 function openSettle(sale) {
   settleSale.value = sale
   settleForm.value = {
-    payment_method: 'cash',
-    payment_amount: Math.max(0, Number(sale.total) - Number(sale.amount_paid)),
-    delivered_at: new Date().toISOString().slice(0, 16),
+    payment_method:  'cash',
+    amount_received: Math.max(0, Number(sale.total) - Number(sale.amount_paid)),
+    notes: '',
   }
   settleError.value = ''
   settleModal.value = true
@@ -357,13 +408,20 @@ async function submitSettle() {
   settling.value = true
   settleError.value = ''
   try {
-    await axios.post(`/api/sales/${settleSale.value.id}/settle-booking`, settleForm.value)
+    const isBooking = settleSale.value.sale_type === 'booking' && settleSale.value.delivery_status === 'booked'
+    const endpoint  = isBooking
+      ? `/api/sales/${settleSale.value.id}/settle-booking`
+      : `/api/sales/${settleSale.value.id}/settle`
+    const payload = isBooking
+      ? { payment_method: settleForm.value.payment_method, payment_amount: settleForm.value.amount_received, notes: settleForm.value.notes }
+      : settleForm.value
+    await axios.post(endpoint, payload)
     settleModal.value = false
-    router.push(`/sales/${settleSale.value.id}`)
+    fetchData()
   } catch (e) {
     settleError.value = e.response?.data?.message
       ?? Object.values(e.response?.data?.errors ?? {}).flat().join(', ')
-      ?? 'Failed to settle booking'
+      ?? 'Failed to record payment'
   } finally {
     settling.value = false
   }
@@ -388,5 +446,8 @@ async function del(s) {
   fetchData()
 }
 
-onMounted(fetchData)
+onMounted(() => {
+  if (route.query.status) statusFilter.value = route.query.status
+  fetchData()
+})
 </script>

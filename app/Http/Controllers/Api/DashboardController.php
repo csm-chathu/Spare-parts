@@ -62,10 +62,12 @@ class DashboardController extends Controller
                 ->whereColumn('stock_quantity', '<=', 'min_stock_level')
                 ->take(10)
                 ->get(['id', 'name', 'sku', 'stock_quantity', 'min_stock_level', 'part_category_id']),
-            'recent_sales' => (clone $salesQuery)->with('customer:id,name')
+            'pending_bills' => (clone $salesQuery)->with('customer:id,name')
+                ->whereIn('payment_status', ['partial', 'pending'])
+                ->where('is_draft', false)
                 ->latest('sold_at')
-                ->take(5)
-                ->get(['id', 'invoice_number', 'customer_id', 'total', 'payment_status', 'sold_at']),
+                ->take(10)
+                ->get(['id', 'invoice_number', 'customer_id', 'total', 'amount_paid', 'payment_status', 'sold_at']),
             'cheque_reminders' => (clone $purchasesQuery)
                 ->with('supplier:id,name')
                 ->where('payment_method', 'cheque')

@@ -47,23 +47,25 @@ class SaleController extends Controller
     {
         $data = $request->validate([
             'customer_id'        => 'nullable|exists:customers,id',
-            'items'              => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity'   => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.discount'   => 'nullable|numeric|min:0',
-            'discount'           => 'nullable|numeric|min:0',
-            'tax'                => 'nullable|numeric|min:0',
-            'tax_rate'           => 'nullable|numeric|min:0|max:100',
-            'maintenance_amount' => 'nullable|numeric|min:0',
-            'payment_method'     => 'required|in:cash,card,bank_transfer,cheque,other',
-            'payment_status'     => 'required|in:pending,paid,partial,refunded',
-            'sale_type'          => 'nullable|in:instant,booking',
-            'booking_expires_at' => 'nullable|date',
-            'amount_paid'        => 'required|numeric|min:0',
-            'notes'              => 'nullable|string',
-            'sold_at'            => 'nullable|date',
-            'is_draft'           => 'nullable|boolean',
+            'items'               => 'required|array|min:1',
+            'items.*.type'        => 'nullable|in:part,labour,other',
+            'items.*.product_id'  => 'nullable|exists:products,id',
+            'items.*.description' => 'nullable|string|max:255',
+            'items.*.quantity'    => 'required|integer|min:1',
+            'items.*.unit_price'  => 'required|numeric|min:0',
+            'items.*.discount'    => 'nullable|numeric|min:0',
+            'discount'            => 'nullable|numeric|min:0',
+            'tax'                 => 'nullable|numeric|min:0',
+            'tax_rate'            => 'nullable|numeric|min:0|max:100',
+            'maintenance_amount'  => 'nullable|numeric|min:0',
+            'payment_method'      => 'required|in:cash,card,bank_transfer,cheque,other',
+            'payment_status'      => 'required|in:pending,paid,partial,refunded',
+            'sale_type'           => 'nullable|in:instant,booking',
+            'booking_expires_at'  => 'nullable|date',
+            'amount_paid'         => 'required|numeric|min:0',
+            'notes'               => 'nullable|string',
+            'sold_at'             => 'nullable|date',
+            'is_draft'            => 'nullable|boolean',
         ]);
 
         DB::beginTransaction();
@@ -73,22 +75,28 @@ class SaleController extends Controller
             $itemData = [];
 
             foreach ($data['items'] as $item) {
-                $product = Product::findOrFail($item['product_id']);
+                $itemType = $item['type'] ?? 'part';
+                $product  = null;
 
-                if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
-                    throw new \Exception("Product not available for your branch: {$product->name}");
-                }
-                if (!$isDraft && $product->stock_quantity < $item['quantity']) {
-                    throw new \Exception("Insufficient stock for: {$product->name}");
+                if ($itemType === 'part' && !empty($item['product_id'])) {
+                    $product = Product::findOrFail($item['product_id']);
+
+                    if (!$request->user()->isAdmin() && $product->branch_id !== $request->user()->branch_id) {
+                        throw new \Exception("Product not available for your branch: {$product->name}");
+                    }
+                    if (!$isDraft && $product->stock_quantity < $item['quantity']) {
+                        throw new \Exception("Insufficient stock for: {$product->name}");
+                    }
                 }
 
-                $qty       = $item['quantity'];
-                $unitPrice = $item['unit_price'];
-                $itemDisc  = $item['discount'] ?? 0;
-                $lineTotal = ($unitPrice * $qty) - $itemDisc;
+                $qty         = $item['quantity'];
+                $unitPrice   = $item['unit_price'];
+                $itemDisc    = $item['discount'] ?? 0;
+                $lineTotal   = ($unitPrice * $qty) - $itemDisc;
+                $description = $item['description'] ?? ($product?->name ?? '');
 
                 $subtotal += $lineTotal;
-                $itemData[] = compact('product', 'qty', 'unitPrice', 'itemDisc', 'lineTotal');
+                $itemData[] = compact('product', 'itemType', 'description', 'qty', 'unitPrice', 'itemDisc', 'lineTotal');
             }
 
             $discount          = $data['discount'] ?? 0;
@@ -156,14 +164,16 @@ class SaleController extends Controller
 
             foreach ($itemData as $i) {
                 SaleItem::create([
-                    'sale_id'    => $sale->id,
-                    'product_id' => $i['product']->id,
-                    'quantity'   => $i['qty'],
-                    'unit_price' => $i['unitPrice'],
-                    'discount'   => $i['itemDisc'],
-                    'total'      => $i['lineTotal'],
+                    'sale_id'     => $sale->id,
+                    'product_id'  => $i['product']?->id,
+                    'type'        => $i['itemType'],
+                    'description' => $i['description'],
+                    'quantity'    => $i['qty'],
+                    'unit_price'  => $i['unitPrice'],
+                    'discount'    => $i['itemDisc'],
+                    'total'       => $i['lineTotal'],
                 ]);
-                if (!$isDraft) {
+                if (!$isDraft && $i['product']) {
                     $i['product']->decrement('stock_quantity', $i['qty']);
                 }
             }
@@ -246,6 +256,52 @@ class SaleController extends Controller
         }
     }
 
+    public function settle(Request $request, Sale $sale)
+    {
+        $this->authorizeBranch($sale->branch_id);
+
+        if (!in_array($sale->payment_status, ['pending', 'partial'])) {
+            return response()->json(['message' => 'This sale is already fully paid.'], 422);
+        }
+        if ($sale->is_draft) {
+            return response()->json(['message' => 'Cannot settle a draft sale.'], 422);
+        }
+
+        $data = $request->validate([
+            'payment_method' => 'required|in:cash,card,bank_transfer,cheque,other',
+            'amount_received' => 'required|numeric|min:0.01',
+            'notes'           => 'nullable|string|max:1000',
+        ]);
+
+        $remaining     = round(max(0, $sale->total - $sale->amount_paid), 2);
+        $amountReceived = round((float) $data['amount_received'], 2);
+
+        if ($amountReceived > $remaining + 0.01) {
+            return response()->json(['message' => "Amount received (LKR {$amountReceived}) exceeds balance due (LKR {$remaining})."], 422);
+        }
+
+        $newAmountPaid = round($sale->amount_paid + $amountReceived, 2);
+        $newStatus     = ($newAmountPaid >= $sale->total - 0.01) ? 'paid' : 'partial';
+
+        DB::beginTransaction();
+        try {
+            $sale->update([
+                'amount_paid'    => $newAmountPaid,
+                'payment_status' => $newStatus,
+                'payment_method' => $data['payment_method'],
+                'notes'          => $data['notes'] ?? $sale->notes,
+            ]);
+
+            AuditLog::record('sale_settled', "Payment of LKR {$amountReceived} received for {$sale->invoice_number}. Status: {$newStatus}", $sale);
+            DB::commit();
+
+            return response()->json($sale->fresh(['items.product', 'customer', 'user']));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
     public function publicView(string $token)
     {
         $sale = Sale::with(['items.product:id,name,sku', 'customer:id,name,phone,email,vehicle_number'])
@@ -310,22 +366,24 @@ class SaleController extends Controller
         }
 
         $data = $request->validate([
-            'customer_id'        => 'nullable|exists:customers,id',
-            'items'              => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity'   => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.discount'   => 'nullable|numeric|min:0',
-            'discount'           => 'nullable|numeric|min:0',
-            'tax'                => 'nullable|numeric|min:0',
-            'tax_rate'           => 'nullable|numeric|min:0|max:100',
-            'maintenance_amount' => 'nullable|numeric|min:0',
-            'payment_method'     => 'required|in:cash,card,bank_transfer,cheque,other',
-            'payment_status'     => 'required|in:pending,paid,partial,refunded',
-            'sale_type'          => 'nullable|in:instant,booking',
-            'amount_paid'        => 'nullable|numeric|min:0',
-            'notes'              => 'nullable|string',
-            'sold_at'            => 'nullable|date',
+            'customer_id'         => 'nullable|exists:customers,id',
+            'items'               => 'required|array|min:1',
+            'items.*.type'        => 'nullable|in:part,labour,other',
+            'items.*.product_id'  => 'nullable|exists:products,id',
+            'items.*.description' => 'nullable|string|max:255',
+            'items.*.quantity'    => 'required|integer|min:1',
+            'items.*.unit_price'  => 'required|numeric|min:0',
+            'items.*.discount'    => 'nullable|numeric|min:0',
+            'discount'            => 'nullable|numeric|min:0',
+            'tax'                 => 'nullable|numeric|min:0',
+            'tax_rate'            => 'nullable|numeric|min:0|max:100',
+            'maintenance_amount'  => 'nullable|numeric|min:0',
+            'payment_method'      => 'required|in:cash,card,bank_transfer,cheque,other',
+            'payment_status'      => 'required|in:pending,paid,partial,refunded',
+            'sale_type'           => 'nullable|in:instant,booking',
+            'amount_paid'         => 'nullable|numeric|min:0',
+            'notes'               => 'nullable|string',
+            'sold_at'             => 'nullable|date',
         ]);
 
         DB::beginTransaction();
@@ -334,17 +392,21 @@ class SaleController extends Controller
             $itemData = [];
 
             foreach ($data['items'] as $item) {
-                $qty       = $item['quantity'];
-                $unitPrice = $item['unit_price'];
-                $itemDisc  = $item['discount'] ?? 0;
-                $lineTotal = ($unitPrice * $qty) - $itemDisc;
+                $qty         = $item['quantity'];
+                $unitPrice   = $item['unit_price'];
+                $itemDisc    = $item['discount'] ?? 0;
+                $lineTotal   = ($unitPrice * $qty) - $itemDisc;
+                $product     = !empty($item['product_id']) ? Product::find($item['product_id']) : null;
+                $description = $item['description'] ?? ($product?->name ?? '');
                 $subtotal += $lineTotal;
                 $itemData[] = [
-                    'product_id' => $item['product_id'],
-                    'quantity'   => $qty,
-                    'unit_price' => $unitPrice,
-                    'discount'   => $itemDisc,
-                    'total'      => $lineTotal,
+                    'product_id'  => $item['product_id'] ?? null,
+                    'type'        => $item['type'] ?? 'part',
+                    'description' => $description,
+                    'quantity'    => $qty,
+                    'unit_price'  => $unitPrice,
+                    'discount'    => $itemDisc,
+                    'total'       => $lineTotal,
                 ];
             }
 

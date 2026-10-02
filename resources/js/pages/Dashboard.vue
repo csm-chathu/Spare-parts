@@ -136,34 +136,67 @@
         </div>
       </div>
 
-      <!-- Recent sales -->
-      <div class="card">
-        <h3 class="font-semibold text-gray-700 mb-4">Recent Sales</h3>
-        <div v-if="!loaded" class="animate-pulse space-y-3">
-          <div v-for="n in 5" :key="n" class="flex items-center justify-between py-2 border-b border-gray-100">
-            <div class="space-y-1.5">
-              <div class="h-3 bg-gray-200 rounded w-28"></div>
+      <!-- Partial / Pending Bills Due -->
+      <div class="card p-0 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <h3 class="font-semibold text-gray-700">Bills Due</h3>
+            <span v-if="pendingBills.length"
+              class="text-xs font-bold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5">
+              {{ pendingBills.length }}
+            </span>
+          </div>
+          <router-link to="/sales?status=partial" class="text-xs text-amber-600 hover:underline font-medium">View all →</router-link>
+        </div>
+
+        <!-- Skeleton -->
+        <div v-if="!loaded" class="divide-y divide-gray-100">
+          <div v-for="n in 4" :key="n" class="flex items-center justify-between px-5 py-3 animate-pulse gap-4">
+            <div class="space-y-1.5 flex-1">
+              <div class="h-3 bg-gray-200 rounded w-32"></div>
               <div class="h-2.5 bg-gray-100 rounded w-20"></div>
             </div>
             <div class="space-y-1.5 text-right">
               <div class="h-3 bg-gray-200 rounded w-24 ml-auto"></div>
-              <div class="h-2.5 bg-gray-100 rounded w-14 ml-auto"></div>
+              <div class="h-2.5 bg-gray-100 rounded w-16 ml-auto"></div>
             </div>
           </div>
         </div>
-        <div v-else class="space-y-3">
-          <div v-for="sale in data.recent_sales" :key="sale.id"
-            class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-            <div>
-              <p class="text-sm font-medium text-gray-800">{{ sale.invoice_number }}</p>
-              <p class="text-xs text-gray-400">{{ sale.customer?.name ?? 'Walk-in' }}</p>
+
+        <!-- Rows -->
+        <div v-else-if="pendingBills.length" class="divide-y divide-gray-100">
+          <div v-for="sale in pendingBills" :key="sale.id"
+            class="flex items-center gap-3 px-5 py-3 hover:bg-amber-50/40 transition-colors">
+            <!-- Icon -->
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              :class="sale.payment_status === 'partial' ? 'bg-blue-100 text-blue-600' : 'bg-yellow-100 text-yellow-600'">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
             </div>
-            <div class="text-right">
-              <p class="text-sm font-semibold text-gray-800">LKR {{ Number(sale.total).toLocaleString() }}</p>
-              <span :class="statusClass(sale.payment_status)" class="badge">{{ sale.payment_status }}</span>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-gray-800">{{ sale.invoice_number }}</p>
+              <p class="text-xs text-gray-400 truncate">{{ sale.customer?.name ?? 'Walk-in' }}</p>
             </div>
+            <!-- Amounts -->
+            <div class="text-right shrink-0">
+              <p class="text-sm font-bold text-red-600">LKR {{ lkr(sale.total - sale.amount_paid) }}</p>
+              <p class="text-[10px] text-gray-400">of LKR {{ lkr(sale.total) }}</p>
+            </div>
+            <!-- Badge -->
+            <span :class="statusClass(sale.payment_status)" class="badge capitalize shrink-0">{{ sale.payment_status }}</span>
           </div>
-          <p v-if="!data.recent_sales?.length" class="text-sm text-gray-400 text-center">No sales yet</p>
+        </div>
+
+        <!-- Empty -->
+        <div v-else class="px-5 py-10 flex flex-col items-center gap-2 text-gray-400">
+          <svg class="w-8 h-8 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p class="text-sm">All bills are settled</p>
         </div>
       </div>
     </div>
@@ -215,6 +248,11 @@ const chartOptions = {
 }
 
 const chequeReminders = computed(() => data.value.cheque_reminders ?? [])
+const pendingBills    = computed(() => data.value.pending_bills ?? [])
+
+function lkr(v) {
+  return Number(v || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 function chequeDays(c) {
   const today = new Date(); today.setHours(0,0,0,0)

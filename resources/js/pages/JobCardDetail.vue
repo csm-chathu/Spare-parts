@@ -101,21 +101,21 @@
             <div class="w-20 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Qty</label>
               <input v-model.number="itemForm.quantity" type="number" min="1" step="1"
-                @input="itemForm.quantity = Math.floor(itemForm.quantity)"
+                @input="itemForm.quantity = Math.floor(itemForm.quantity)" @focus="$event.target.select()"
                 class="form-input text-sm text-center" />
             </div>
             <!-- Price -->
             <div class="w-28 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Unit Price</label>
               <input v-model.number="itemForm.unit_price" type="number" min="0" step="1"
-                @input="itemForm.unit_price = Math.floor(itemForm.unit_price)"
+                @input="itemForm.unit_price = Math.floor(itemForm.unit_price)" @focus="$event.target.select()"
                 class="form-input text-sm" />
             </div>
             <!-- Discount -->
             <div class="w-24 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Discount</label>
               <input v-model.number="itemForm.discount" type="number" min="0" step="1"
-                @input="itemForm.discount = Math.floor(itemForm.discount)"
+                @input="itemForm.discount = Math.floor(itemForm.discount)" @focus="$event.target.select()"
                 class="form-input text-sm" />
             </div>
             <!-- Total preview -->
@@ -202,8 +202,8 @@
             <div class="flex items-center gap-1">
               <span class="text-indigo-400 text-sm">LKR</span>
               <input v-model.number="billDiscountInput" type="number" min="0" step="1"
-                @change="saveBillDiscount"
-                class="w-28 bg-indigo-900 border border-indigo-700 text-white text-sm rounded-lg px-2 py-1 text-right focus:outline-none focus:border-amber-400" />
+                @change="saveBillDiscount" @focus="$event.target.select()"
+                class="w-28 bg-black border border-gray-700 text-white text-sm rounded-lg px-2 py-1 text-right focus:outline-none focus:border-amber-400" />
             </div>
           </div>
           <!-- Grand total -->

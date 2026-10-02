@@ -31,11 +31,6 @@
             <p class="font-bold text-blue-400 text-lg">{{ card.branch_name || 'Siril Motors' }}</p>
             <p class="text-xs text-gray-400">Vehicle Service Centre</p>
           </div>
-          <a :href="`${currentUrl}/invoice`"
-            class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-xl text-sm font-bold transition-colors">
-            <PrinterIcon class="w-4 h-4" />
-            View Invoice
-          </a>
         </div>
       </div>
 

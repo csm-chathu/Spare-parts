@@ -13,6 +13,7 @@ class JobCard extends Model
         'vehicle_number', 'vehicle_make', 'vehicle_model', 'mileage',
         'complaint', 'assigned_technician', 'estimated_completion',
         'status', 'notes', 'total', 'bill_discount', 'branch_id', 'created_by', 'completed_at',
+        'journal_entry_id',
     ];
 
     protected static function booted(): void
@@ -25,8 +26,9 @@ class JobCard extends Model
     protected $casts = [
         'estimated_completion' => 'date',
         'completed_at'         => 'datetime',
-        'total'                => 'float',
-        'bill_discount'        => 'float',
+        'total'            => 'float',
+        'bill_discount'    => 'float',
+        'journal_entry_id' => 'integer',
     ];
 
     public static function generateCardNumber(): string
@@ -46,8 +48,9 @@ class JobCard extends Model
         $this->save();
     }
 
-    public function customer()   { return $this->belongsTo(Customer::class); }
-    public function branch()     { return $this->belongsTo(Branch::class); }
-    public function createdBy()  { return $this->belongsTo(User::class, 'created_by'); }
-    public function items()      { return $this->hasMany(JobCardItem::class); }
+    public function customer()      { return $this->belongsTo(Customer::class); }
+    public function branch()        { return $this->belongsTo(Branch::class); }
+    public function createdBy()     { return $this->belongsTo(User::class, 'created_by'); }
+    public function items()         { return $this->hasMany(JobCardItem::class); }
+    public function journalEntry()  { return $this->belongsTo(\App\Models\JournalEntry::class); }
 }

@@ -7,16 +7,13 @@
       <div class="flex items-center gap-3">
         <router-link to="/sales"
           class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
-          <ArrowLeftIcon class="w-4 h-4" /> Back to Sales
+          <ArrowLeftIcon class="w-4 h-4" /> Sales
         </router-link>
         <span class="text-gray-300">/</span>
         <h2 class="text-base font-semibold text-gray-800">New Sale</h2>
-      </div>
-      <div class="flex items-center gap-2 text-xs text-gray-400">
-        <span v-if="form.items.length" class="bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">
+        <span v-if="form.items.length" class="bg-blue-100 text-blue-700 font-semibold text-xs px-2 py-0.5 rounded-full">
           {{ form.items.length }} item{{ form.items.length !== 1 ? 's' : '' }}
         </span>
-        <span class="font-medium text-gray-600">LKR {{ lkr(total) }}</span>
       </div>
     </div>
 
@@ -24,151 +21,152 @@
     <div class="flex flex-1 min-h-0">
 
       <!-- ═══ LEFT: Cart ═══ -->
-      <div class="flex-1 flex flex-col min-w-0 border-r border-gray-200 bg-gray-50">
+      <div class="flex-1 flex flex-col min-w-0 bg-white">
 
-        <!-- Barcode bar -->
-        <div class="px-5 py-3 bg-white border-b border-gray-200 shrink-0">
-          <div class="flex gap-2">
-            <div class="relative flex-1">
-              <QrCodeIcon class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              <input
-                v-model="barcodeInput"
-                type="text"
-                placeholder="Scan barcode or type SKU and press Enter…"
-                class="form-input pl-9 text-sm font-mono w-full"
-                @keyup.enter="scanBarcode"
-                @keyup.tab.prevent="scanBarcode"
-              />
+        <!-- ADD ITEM bar -->
+        <div class="px-5 py-3 border-b border-gray-200 shrink-0 bg-gray-50">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <PlusCircleIcon class="w-3.5 h-3.5" /> Add Item
+          </p>
+          <div class="flex items-end gap-3">
+            <!-- Type -->
+            <div class="w-32 shrink-0">
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
+              <select v-model="newItem.type" class="form-input text-sm" @change="onNewItemTypeChange">
+                <option value="part">Part</option>
+                <option value="labour">Labour</option>
+                <option value="other">Other</option>
+              </select>
             </div>
-            <button @click="addItem"
-              class="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors shrink-0">
-              <PlusIcon class="w-4 h-4" /> Add Item
+            <!-- Description / product search -->
+            <div class="relative flex-1 min-w-48">
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Description</label>
+              <input v-if="newItem.type !== 'part'" v-model="newItem.description"
+                class="form-input text-sm" placeholder="e.g. Engine oil change" />
+              <div v-else class="relative">
+                <input v-model="newItemSearch" class="form-input text-sm" placeholder="Search part name or SKU…"
+                  @input="newItem.product_id = ''; newItem.description = newItemSearch; showNewItemDd = !!newItemSearch.trim()"
+                  @focus="showNewItemDd = !!newItemSearch.trim()"
+                  @keydown.esc="showNewItemDd = false" />
+                <div v-if="showNewItemDd" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+                  <button v-for="p in searchProducts(newItemSearch)" :key="p.id" type="button"
+                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                    @mousedown.prevent="pickNewItemProduct(p)">
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</p>
+                      <p class="text-[11px] text-gray-400">SKU: {{ p.sku }} · Stock: {{ p.stock_quantity }}</p>
+                    </div>
+                    <span class="font-bold text-blue-700 text-sm shrink-0">LKR {{ Number(p.selling_price).toLocaleString() }}</span>
+                  </button>
+                  <div v-if="!searchProducts(newItemSearch).length" class="px-3 py-3 text-sm text-gray-400 text-center">No parts found</div>
+                </div>
+              </div>
+            </div>
+            <!-- Qty -->
+            <div class="w-20 shrink-0">
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Qty</label>
+              <input v-model.number="newItem.quantity" type="number" min="1" step="1"
+                @focus="$event.target.select()" class="form-input text-sm text-center" />
+            </div>
+            <!-- Unit Price -->
+            <div class="w-28 shrink-0">
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Unit Price</label>
+              <input v-model.number="newItem.unit_price" type="number" min="0" step="1"
+                @focus="$event.target.select()" class="form-input text-sm" />
+            </div>
+            <!-- Discount -->
+            <div class="w-24 shrink-0">
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Discount</label>
+              <input v-model.number="newItem.discount" type="number" min="0" step="1"
+                @focus="$event.target.select()" class="form-input text-sm" />
+            </div>
+            <!-- Line total -->
+            <div class="w-32 shrink-0">
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Line Total</label>
+              <div class="form-input text-sm font-bold text-blue-700 bg-blue-50 border-blue-200 text-right">
+                LKR {{ lkr(Math.max(0, newItem.quantity * newItem.unit_price - (newItem.discount || 0))) }}
+              </div>
+            </div>
+            <!-- Add button -->
+            <button @click="addNewItem"
+              class="shrink-0 inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors">
+              <PlusIcon class="w-4 h-4" /> Add
             </button>
           </div>
-          <p v-if="barcodeError" class="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ barcodeError }}
+          <p v-if="addItemError" class="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ addItemError }}
           </p>
         </div>
 
-        <!-- Cart table -->
+        <!-- Items table -->
         <div class="flex-1 overflow-y-auto">
+
+          <!-- Table header -->
+          <div v-if="form.items.length" class="flex items-center px-5 py-2 bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest sticky top-0">
+            <span class="w-16 shrink-0">Type</span>
+            <span class="flex-1">Description</span>
+            <span class="w-24 shrink-0 text-center">Qty</span>
+            <span class="w-28 shrink-0 text-right">Unit Price</span>
+            <span class="w-24 shrink-0 text-right">Discount</span>
+            <span class="w-28 shrink-0 text-right">Total</span>
+            <span class="w-8 shrink-0"></span>
+          </div>
+
           <!-- Empty state -->
           <div v-if="!form.items.length"
             class="flex flex-col items-center justify-center h-full text-gray-400">
-            <div class="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <ShoppingCartIcon class="w-10 h-10 text-gray-300" />
+            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+              <ShoppingCartIcon class="w-8 h-8 text-gray-300" />
             </div>
             <p class="font-medium text-gray-500 mb-1">Cart is empty</p>
-            <p class="text-sm">Scan a barcode or click Add Item to start</p>
-            <button @click="addItem"
-              class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-colors">
-              <PlusIcon class="w-4 h-4" /> Add First Item
-            </button>
+            <p class="text-sm">Add items using the form above</p>
           </div>
 
-          <!-- Items -->
-          <div v-if="form.items.length">
-            <!-- Table header -->
-            <div class="flex items-center gap-2 px-5 py-2 bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest sticky top-0">
-              <span class="w-6 shrink-0"></span>
-              <span class="flex-1">Part / Description</span>
-              <span class="w-20 shrink-0 text-center">Qty</span>
-              <span class="w-28 shrink-0">Unit Price</span>
-              <span class="w-24 shrink-0">Discount</span>
-              <span class="w-24 shrink-0 text-right">Line Total</span>
-              <span class="w-8 shrink-0"></span>
-            </div>
-
-            <div v-for="(item, i) in form.items" :key="i"
-              class="flex items-start gap-2 px-5 py-3 border-b border-gray-100 bg-white hover:bg-blue-50/30 transition-colors">
-
-              <!-- Row number -->
-              <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0 mt-1.5">
-                {{ i + 1 }}
+          <!-- Item rows -->
+          <div v-for="(item, i) in form.items" :key="i"
+            class="flex items-center px-5 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <!-- Type badge -->
+            <div class="w-16 shrink-0">
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize"
+                :class="item.type === 'part' ? 'bg-blue-100 text-blue-700' : item.type === 'labour' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'">
+                {{ item.type }}
               </span>
-
-              <!-- Product search -->
-              <div class="relative flex-1 min-w-0">
-                <input
-                  :id="`item-search-${i}`"
-                  v-model="item.product_search"
-                  type="text"
-                  class="form-input w-full font-medium text-sm"
-                  placeholder="Type part name, SKU or barcode…"
-                  @input="item.product_id = ''; item.product_ref = null; item.product_search?.trim() ? openProductDropdown(item) : (item.product_dropdown_open = false); item.product_dropdown_index = -1"
-                  @focus="!item.product_id && item.product_search?.trim() ? openProductDropdown(item) : null"
-                  @keydown.down.prevent="moveDropdown(item, 1)"
-                  @keydown.up.prevent="moveDropdown(item, -1)"
-                  @keydown.enter.prevent="confirmDropdown(item, i)"
-                  @keydown.esc="item.product_dropdown_open = false"
-                />
-                <!-- Dropdown -->
-                <div v-if="item.product_dropdown_open" :id="`dd-${i}`"
-                  class="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
-                  <button
-                    v-for="(p, pi) in searchProducts(item.product_search)"
-                    :key="p.id" :id="`dd-${i}-${pi}`" type="button"
-                    :class="pi === item.product_dropdown_index ? 'bg-blue-50' : 'hover:bg-gray-50'"
-                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left border-b border-gray-100 last:border-b-0"
-                    @mousedown.prevent="selectProduct(item, p)">
-                    <div class="shrink-0 w-9 h-9 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
-                      <img v-if="p.image" :src="p.image" :alt="p.name" class="w-full h-full object-cover" />
-                      <WrenchScrewdriverIcon v-else class="w-5 h-5 text-gray-300" />
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</p>
-                      <p class="text-[11px] text-gray-400 truncate">
-                        <span v-if="p.part_number" class="font-mono text-gray-500">{{ p.part_number }}</span>
-                        <span v-if="p.part_number"> · </span>SKU: {{ p.sku }}
-                      </p>
-                    </div>
-                    <div class="shrink-0 text-right text-[11px]">
-                      <p class="font-bold text-blue-700">LKR {{ Number(p.selling_price).toLocaleString() }}</p>
-                      <p class="text-gray-400">Stock: {{ p.stock_quantity }}</p>
-                    </div>
-                  </button>
-                  <div v-if="!searchProducts(item.product_search).length" class="px-3 py-3 text-sm text-gray-400 text-center">
-                    No parts found
-                  </div>
-                </div>
-                <!-- Part meta tags -->
-                <div v-if="item.product_ref" class="flex items-center gap-1.5 mt-1 flex-wrap">
-                  <span v-if="item.product_ref.part_number" class="text-[10px] font-mono bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ item.product_ref.part_number }}</span>
-                  <span v-if="item.product_ref.brand" class="text-[10px] text-gray-400">{{ item.product_ref.brand.name }}</span>
-                  <span v-if="item.product_ref.model" class="text-[10px] text-gray-400">· {{ item.product_ref.model.name }}</span>
-                </div>
-              </div>
-
-              <!-- Qty -->
-              <input :id="`item-qty-${i}`" v-model.number="item.quantity" type="number" min="1"
-                class="form-input w-20 shrink-0 text-center font-bold mt-0.5 text-sm" @input="recalcItem(item)"
-                @focus="$event.target.select()" @keydown.enter.prevent="focusField(`item-price-${i}`)" />
-
-              <!-- Unit Price -->
-              <input :id="`item-price-${i}`" v-model.number="item.unit_price" type="number" min="0"
-                class="form-input w-28 shrink-0 mt-0.5 text-sm" @input="recalcItem(item)"
-                @focus="$event.target.select()" @keydown.enter.prevent="focusField(`item-discount-${i}`)" />
-
-              <!-- Discount -->
-              <input :id="`item-discount-${i}`" v-model.number="item.discount" type="number" min="0"
-                class="form-input w-24 shrink-0 mt-0.5 text-sm" @input="recalcItem(item)"
-                @focus="$event.target.select()" @keydown.enter.prevent="addItemAndFocus()" />
-
-              <!-- Line total -->
-              <span class="w-24 shrink-0 text-right text-sm font-bold text-blue-700 mt-2">
-                {{ item.unit_price > 0 ? lkr(item._lineTotal) : '—' }}
-              </span>
-
-              <button @click="removeItem(i)"
-                class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0 mt-0.5">
-                <TrashIcon class="w-4 h-4" />
-              </button>
             </div>
+            <!-- Description -->
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 text-sm truncate">{{ item.description || '—' }}</p>
+              <p v-if="item.product_ref?.sku" class="text-[10px] text-gray-400">SKU: {{ item.product_ref.sku }}</p>
+            </div>
+            <!-- Qty -->
+            <div class="w-24 shrink-0 flex items-center gap-1">
+              <button @click="changeQty(i, -1)"
+                class="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm transition-colors shrink-0">−</button>
+              <span class="flex-1 text-center text-sm font-semibold text-gray-800">{{ item.quantity }}</span>
+              <button @click="changeQty(i, 1)"
+                class="w-6 h-6 flex items-center justify-center rounded bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-sm transition-colors shrink-0">+</button>
+            </div>
+            <!-- Unit price -->
+            <span class="w-28 shrink-0 text-right text-sm text-gray-700">{{ lkr(item.unit_price) }}</span>
+            <!-- Discount -->
+            <div class="w-24 shrink-0">
+              <input v-model.number="item.discount" type="number" min="0"
+                @input="updateItemDiscount(i)"
+                @focus="$event.target.select()"
+                class="w-full text-right text-sm rounded px-1.5 py-0.5 border border-transparent focus:border-gray-300 focus:outline-none bg-transparent hover:bg-gray-100 focus:bg-white transition-colors"
+                :class="item.discount > 0 ? 'text-red-500 font-medium' : 'text-gray-400'" />
+            </div>
+            <!-- Total -->
+            <span class="w-28 shrink-0 text-right text-sm font-bold text-blue-700">LKR {{ lkr(item._lineTotal) }}</span>
+            <!-- Delete -->
+            <button @click="removeItem(i)"
+              class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0">
+              <TrashIcon class="w-4 h-4" />
+            </button>
           </div>
         </div>
 
         <!-- Notes bar -->
-        <div class="px-5 py-3 bg-white border-t border-gray-200 shrink-0">
+        <div class="px-5 py-2.5 bg-white border-t border-gray-200 shrink-0">
           <div class="flex items-center gap-2">
             <ChatBubbleLeftIcon class="w-4 h-4 text-gray-400 shrink-0" />
             <input v-model="form.notes" type="text"
@@ -176,10 +174,47 @@
               class="form-input flex-1 text-sm" />
           </div>
         </div>
+
+        <!-- Pinned Order Summary (indigo, matches Job Card total bar) -->
+        <div class="shrink-0 text-white">
+          <!-- Breakdown row -->
+          <div class="flex items-center gap-6 px-6 py-3 bg-indigo-950 text-sm flex-wrap">
+            <span class="text-indigo-300 ml-auto">Subtotal</span>
+            <span class="text-white font-medium w-32 text-right">LKR {{ lkr(subtotal) }}</span>
+            <template v-if="form.discount > 0">
+              <span class="text-indigo-300">Discount</span>
+              <span class="text-red-300 font-medium w-32 text-right">−LKR {{ lkr(form.discount) }}</span>
+            </template>
+            <template v-if="form.tax > 0">
+              <span class="text-indigo-300">Tax ({{ form.tax_rate }}%)</span>
+              <span class="text-blue-300 font-medium w-32 text-right">+LKR {{ lkr(form.tax) }}</span>
+            </template>
+          </div>
+          <!-- Grand total row -->
+          <div class="flex items-center gap-4 px-6 py-3 bg-indigo-900">
+            <div class="flex-1"></div>
+            <span class="text-indigo-300 text-sm">Amount Paid (LKR)</span>
+            <input v-model.number="form.amount_paid" type="number" min="0" @focus="$event.target.select()"
+              class="w-32 bg-black border border-indigo-700 text-white text-sm rounded-lg px-2 py-1 text-right focus:outline-none focus:border-amber-400" />
+            <span class="text-indigo-300 text-sm ml-4">Grand Total</span>
+            <span class="text-xl font-black text-white w-40 text-right">LKR {{ lkr(total) }}</span>
+            <div class="w-2"></div>
+          </div>
+          <div v-if="form.payment_status === 'partial' && form.amount_paid < total"
+            class="px-6 py-2 bg-yellow-900/60 text-xs text-yellow-300 flex items-center gap-1.5">
+            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
+            Balance due: LKR {{ lkr(total - form.amount_paid) }}
+          </div>
+          <div v-if="form.payment_status === 'paid' && form.amount_paid > total"
+            class="px-6 py-2 bg-green-900/60 text-xs text-green-300 flex items-center gap-1.5">
+            <CheckCircleIcon class="w-3.5 h-3.5 shrink-0" />
+            Change to return: LKR {{ lkr(form.amount_paid - total) }}
+          </div>
+        </div>
       </div>
 
       <!-- ═══ RIGHT: Panel ═══ -->
-      <div class="w-80 xl:w-96 shrink-0 flex flex-col bg-white">
+      <div class="w-72 xl:w-80 shrink-0 flex flex-col bg-white border-l border-gray-200">
         <div class="flex-1 overflow-y-auto">
 
           <!-- Customer section -->
@@ -233,14 +268,7 @@
               <CreditCardIcon class="w-3.5 h-3.5" /> Payment
             </p>
 
-            <div class="grid grid-cols-3 gap-2">
-              <div>
-                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Type</label>
-                <select v-model="form.sale_type" class="form-input text-sm" @change="onSaleTypeChange">
-                  <option value="instant">Instant</option>
-                  <option value="booking">Booking</option>
-                </select>
-              </div>
+            <div class="grid grid-cols-2 gap-2">
               <div>
                 <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Method</label>
                 <select v-model="form.payment_method" class="form-input text-sm">
@@ -260,20 +288,9 @@
               </div>
             </div>
 
-            <div v-if="form.sale_type === 'booking'">
-              <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Booking Expiry</label>
-              <input v-model="form.booking_expires_at" type="date" class="form-input text-sm" />
-            </div>
-
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Discount (LKR)</label>
-                <input v-model.number="form.discount" type="number" min="0" class="form-input text-sm" @input="recalc" />
-              </div>
-              <div>
-                <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Service Charge</label>
-                <input v-model.number="form.maintenance_amount" type="number" min="0" class="form-input text-sm" @input="recalc" />
-              </div>
+            <div>
+              <label class="text-[10px] font-semibold text-gray-400 uppercase mb-1 block">Discount (LKR)</label>
+              <input v-model.number="form.discount" type="number" min="0" class="form-input text-sm" @input="recalc" @focus="$event.target.select()" />
             </div>
 
             <!-- Tax -->
@@ -303,69 +320,19 @@
 
         </div>
 
-        <!-- Pinned Order Summary -->
-        <div class="shrink-0 text-white">
-          <!-- Breakdown row -->
-          <div class="px-5 py-3 bg-indigo-950 space-y-1.5 text-sm">
-            <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <ReceiptPercentIcon class="w-3.5 h-3.5" /> Order Summary
-            </p>
-            <div class="flex justify-between text-indigo-300">
-              <span>Subtotal</span>
-              <span class="font-medium text-white">LKR {{ lkr(subtotal) }}</span>
-            </div>
-            <div v-if="form.discount > 0" class="flex justify-between">
-              <span class="text-indigo-300">Discount</span>
-              <span class="text-red-300 font-medium">−LKR {{ lkr(form.discount) }}</span>
-            </div>
-            <div v-if="form.tax > 0" class="flex justify-between">
-              <span class="text-indigo-300">Tax ({{ form.tax_rate }}%)</span>
-              <span class="text-blue-300 font-medium">+LKR {{ lkr(form.tax) }}</span>
-            </div>
-            <div v-if="form.maintenance_amount > 0" class="flex justify-between">
-              <span class="text-indigo-300">Service Charge</span>
-              <span class="text-yellow-300 font-medium">+LKR {{ lkr(form.maintenance_amount) }}</span>
-            </div>
-          </div>
-          <!-- Grand total + amount paid row -->
-          <div class="px-5 py-3 bg-indigo-900 space-y-2">
-            <div class="flex justify-between items-center">
-              <span class="text-sm text-indigo-300">Grand Total</span>
-              <span class="text-xl font-black text-white">LKR {{ lkr(total) }}</span>
-            </div>
-            <div>
-              <label class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 block">Amount Paid (LKR)</label>
-              <input v-model.number="form.amount_paid" type="number" min="0"
-                class="w-full bg-indigo-950 text-white border border-indigo-700 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400" />
-            </div>
-            <div v-if="form.payment_status === 'partial' && form.amount_paid < total"
-              class="text-xs text-yellow-300 bg-yellow-900/40 border border-yellow-800/40 rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
-              Balance due: LKR {{ lkr(total - form.amount_paid) }}
-            </div>
-            <div v-if="form.payment_status === 'paid' && form.amount_paid > total"
-              class="text-xs text-green-300 bg-green-900/40 border border-green-800/40 rounded-lg px-3 py-2 flex items-center gap-1.5">
-              <CheckCircleIcon class="w-3.5 h-3.5 shrink-0" />
-              Change to return: LKR {{ lkr(form.amount_paid - total) }}
-            </div>
-          </div>
-        </div>
-
-        <!-- Pinned action buttons -->
-        <div class="px-5 py-4 border-t border-gray-200 bg-white space-y-2 shrink-0">
-          <p v-if="error" class="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-1.5">
-            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ error }}
-          </p>
+        <!-- Action buttons pinned at bottom of right panel -->
+        <div class="shrink-0 px-4 py-3 border-t border-gray-200 bg-white space-y-2">
+          <p v-if="error" class="text-xs text-red-600 text-center">{{ error }}</p>
           <button @click="submit(false)" :disabled="saving || !form.items.length"
-            class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm shadow-sm transition-colors">
-            <CheckCircleIcon v-if="!saving" class="w-5 h-5" />
-            <ArrowPathIcon v-else class="w-5 h-5 animate-spin" />
+            class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl text-sm font-bold transition-colors shadow-sm">
+            <CheckCircleIcon v-if="!saving" class="w-4 h-4" />
+            <ArrowPathIcon v-else class="w-4 h-4 animate-spin" />
             {{ saving ? 'Processing…' : 'Complete Sale' }}
           </button>
           <button @click="submit(true)" :disabled="saving || !form.items.length"
-            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800 hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-sm transition-colors">
+            class="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-gray-700 rounded-xl text-sm font-semibold transition-colors">
             <DocumentTextIcon class="w-4 h-4" />
-            {{ saving ? 'Saving…' : 'Save as Draft' }}
+            {{ saving ? 'Saving…' : 'Save Draft' }}
           </button>
         </div>
       </div>
@@ -375,15 +342,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import {
-  ArrowLeftIcon, PlusIcon, XMarkIcon, TrashIcon,
+  ArrowLeftIcon, PlusIcon, PlusCircleIcon, TrashIcon,
   ShoppingCartIcon, UserIcon, UserPlusIcon, CreditCardIcon, CalculatorIcon,
-  ReceiptPercentIcon, CheckCircleIcon, ArrowPathIcon,
-  ExclamationTriangleIcon, ChatBubbleLeftIcon, QrCodeIcon, WrenchScrewdriverIcon,
+  CheckCircleIcon, ArrowPathIcon,
+  ExclamationTriangleIcon, ChatBubbleLeftIcon,
   DocumentTextIcon,
 } from '@heroicons/vue/24/outline'
 
@@ -402,56 +369,70 @@ const savingCustomer   = ref(false)
 const newCustomerError = ref('')
 const newCustomer      = reactive({ name: '', phone: '', vehicle_number: '' })
 
-// Barcode scanner
-const barcodeInput = ref('')
-const barcodeError = ref('')
-let barcodeClearTimer = null
+// ADD ITEM bar state
+const newItemSearch  = ref('')
+const showNewItemDd  = ref(false)
+const addItemError   = ref('')
+const newItem = reactive({ type: 'part', description: '', product_id: '', quantity: 1, unit_price: 0, discount: 0 })
 
-function scanBarcode() {
-  const code = barcodeInput.value.trim()
-  barcodeInput.value = ''
-  if (!code) return
-
-  const product = products.value.find(p =>
-    p.barcode?.toLowerCase() === code.toLowerCase() ||
-    p.sku?.toLowerCase() === code.toLowerCase()
-  )
-  if (!product) {
-    barcodeError.value = `Barcode/SKU "${code}" not found`
-    clearTimeout(barcodeClearTimer)
-    barcodeClearTimer = setTimeout(() => { barcodeError.value = '' }, 3000)
-    return
-  }
-  if (product.stock_quantity < 1) {
-    barcodeError.value = `"${product.name}" is out of stock`
-    clearTimeout(barcodeClearTimer)
-    barcodeClearTimer = setTimeout(() => { barcodeError.value = '' }, 3000)
-    return
-  }
-
-  const existing = form.items.find(i => i.product_id == product.id)
-  if (existing) {
-    existing.quantity++
-    recalcItem(existing)
-  } else {
-    const item = newItem()
-    item.product_id = product.id
-    form.items.push(item)
-    fillProduct(item)
-  }
-  barcodeError.value = ''
+function onNewItemTypeChange() {
+  newItem.product_id  = ''
+  newItem.description = ''
+  newItemSearch.value = ''
+  showNewItemDd.value = false
+  newItem.unit_price  = 0
+  newItem.discount    = 0
+  newItem.quantity    = 1
 }
 
-function addMonths(date, months) {
-  const d = new Date(date)
-  d.setMonth(d.getMonth() + months)
-  return d.toISOString().slice(0, 10)
+function pickNewItemProduct(p) {
+  newItem.product_id  = p.id
+  newItem.description = p.name
+  newItem.unit_price  = p.selling_price
+  newItemSearch.value = p.name
+  showNewItemDd.value = false
+}
+
+function addNewItem() {
+  addItemError.value = ''
+  if (newItem.type === 'part' && !newItem.product_id) {
+    addItemError.value = 'Please select a part from the dropdown.'
+    return
+  }
+  if (newItem.type !== 'part' && !newItem.description.trim()) {
+    addItemError.value = 'Please enter a description.'
+    return
+  }
+  if (!newItem.unit_price) {
+    addItemError.value = 'Unit price is required.'
+    return
+  }
+  const lineTotal = (newItem.unit_price * newItem.quantity) - (newItem.discount || 0)
+  const p = newItem.type === 'part' ? products.value.find(x => x.id == newItem.product_id) : null
+  form.items.push({
+    type:        newItem.type,
+    description: newItem.description,
+    product_id:  newItem.product_id || null,
+    product_ref: p ?? null,
+    quantity:    newItem.quantity,
+    unit_price:  newItem.unit_price,
+    discount:    newItem.discount || 0,
+    _lineTotal:  lineTotal,
+  })
+  recalc()
+  // Reset bar
+  newItem.product_id  = ''
+  newItem.description = ''
+  newItem.unit_price  = 0
+  newItem.discount    = 0
+  newItem.quantity    = 1
+  newItemSearch.value = ''
+  showNewItemDd.value = false
 }
 
 const form = reactive({
   customer_id: '', payment_method: 'cash', payment_status: 'paid',
-  discount: 0, tax: 0, tax_rate: 0, maintenance_amount: 0, amount_paid: 0, notes: '',
-  sale_type: 'instant', booking_expires_at: addMonths(new Date(), 3),
+  discount: 0, tax: 0, tax_rate: 0, amount_paid: 0, notes: '',
   items: [],
 })
 
@@ -470,46 +451,22 @@ function searchProducts(term) {
     .slice(0, 20)
 }
 
-function openProductDropdown(item) {
-  item.product_dropdown_open = true
+function removeItem(i) { form.items.splice(i, 1); recalc() }
+
+function changeQty(i, delta) {
+  const item = form.items[i]
+  const next = item.quantity + delta
+  if (next < 1) return
+  item.quantity = next
+  item._lineTotal = (item.unit_price * item.quantity) - (item.discount || 0)
+  recalc()
 }
 
-function focusField(id) {
-  nextTick(() => { document.getElementById(id)?.focus() })
-}
-
-function addItemAndFocus() {
-  form.items.push(newItem())
-  const i = form.items.length - 1
-  nextTick(() => { document.getElementById(`item-search-${i}`)?.focus() })
-}
-
-function moveDropdown(item, dir) {
-  if (!item.product_dropdown_open) { item.product_dropdown_open = true; return }
-  const results = searchProducts(item.product_search)
-  item.product_dropdown_index = Math.max(0, Math.min(results.length - 1, item.product_dropdown_index + dir))
-  const el = document.getElementById(`dd-${form.items.indexOf(item)}-${item.product_dropdown_index}`)
-  el?.scrollIntoView({ block: 'nearest' })
-}
-
-function confirmDropdown(item, i) {
-  const results = searchProducts(item.product_search)
-  const idx = item.product_dropdown_index
-  if (item.product_dropdown_open && idx >= 0 && results[idx]) {
-    selectProduct(item, results[idx], i)
-  } else {
-    openProductDropdown(item)
-  }
-}
-
-function selectProduct(item, product, i) {
-  item.product_id = product.id
-  item.product_search = [product.name, product.sku ? `SKU: ${product.sku}` : null, product.barcode ? `Barcode: ${product.barcode}` : null]
-    .filter(Boolean).join(' · ')
-  item.product_dropdown_open = false
-  fillProduct(item)
-  const idx = i ?? form.items.indexOf(item)
-  focusField(`item-qty-${idx}`)
+function updateItemDiscount(i) {
+  const item = form.items[i]
+  item.discount = Math.max(0, item.discount || 0)
+  item._lineTotal = (item.unit_price * item.quantity) - item.discount
+  recalc()
 }
 
 const selectedCustomer = computed(() =>
@@ -540,34 +497,8 @@ function lkr(val) {
   return Number(val || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function newItem() {
-  return {
-    product_id: '', product_search: '', product_dropdown_open: false, product_dropdown_index: -1,
-    quantity: 1, unit_price: 0, discount: 0,
-    product_ref: null, _lineTotal: 0,
-  }
-}
-
-function addItem()     { form.items.push(newItem()) }
-function removeItem(i) { form.items.splice(i, 1); recalc() }
-
-function fillProduct(item) {
-  const p = products.value.find(x => x.id == item.product_id)
-  if (!p) { item.product_ref = null; return }
-  item.product_ref   = p
-  item.product_search = [p.name, p.sku ? `SKU: ${p.sku}` : null, p.barcode ? `Barcode: ${p.barcode}` : null]
-    .filter(Boolean).join(' · ')
-  item.unit_price = p.selling_price
-  recalcItem(item)
-}
-
-function recalcItem(item) {
-  item._lineTotal = (item.unit_price * item.quantity) - (item.discount || 0)
-  recalc()
-}
-
 const subtotal = computed(() => form.items.reduce((s, i) => s + (i._lineTotal || 0), 0))
-const total    = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.tax || 0) + (form.maintenance_amount || 0)))
+const total    = computed(() => Math.max(0, subtotal.value - (form.discount || 0) + (form.tax || 0)))
 
 function recalc() {
   if (form.tax_rate > 0) {
@@ -583,16 +514,6 @@ function onPaymentStatusChange() {
   if (form.payment_status === 'pending') form.amount_paid = 0
 }
 
-function onSaleTypeChange() {
-  if (form.sale_type === 'booking') {
-    if (!form.customer_id) form.payment_status = 'partial'
-    if (!form.booking_expires_at) form.booking_expires_at = addMonths(new Date(), 3)
-  } else {
-    form.payment_status = 'paid'
-    form.amount_paid = total.value
-  }
-}
-
 function applyTax() {
   const t = taxes.value.find(x => x.id == selectedTaxId.value)
   if (t) { form.tax_rate = t.rate; recalc() }
@@ -603,25 +524,25 @@ async function submit(asDraft = false) {
   saving.value = true; error.value = ''
   try {
     const { data } = await axios.post('/api/sales', {
-      customer_id:        form.customer_id || null,
-      payment_method:     form.payment_method,
-      payment_status:     form.payment_status,
-      sale_type:          form.sale_type,
-      booking_expires_at: form.sale_type === 'booking' ? form.booking_expires_at : null,
-      discount:           form.discount,
-      tax:                form.tax,
-      tax_rate:           form.tax_rate,
-      maintenance_amount: form.maintenance_amount,
-      amount_paid:        form.amount_paid,
-      notes:              form.notes,
-      total:              total.value,
-      subtotal:           subtotal.value,
-      is_draft:           asDraft,
-      items: form.items.filter(i => i.product_id).map(i => ({
-        product_id: i.product_id,
-        quantity:   i.quantity,
-        unit_price: i.unit_price,
-        discount:   i.discount,
+      customer_id:    form.customer_id || null,
+      payment_method: form.payment_method,
+      payment_status: form.payment_status,
+      sale_type:      'instant',
+      discount:       form.discount,
+      tax:            form.tax,
+      tax_rate:       form.tax_rate,
+      amount_paid:    form.amount_paid,
+      notes:          form.notes,
+      total:          total.value,
+      subtotal:       subtotal.value,
+      is_draft:       asDraft,
+      items: form.items.map(i => ({
+        product_id:  i.product_id  || null,
+        type:        i.type,
+        description: i.description,
+        quantity:    i.quantity,
+        unit_price:  i.unit_price,
+        discount:    i.discount,
       })),
     })
     router.push(`/sales/${data.id}`)

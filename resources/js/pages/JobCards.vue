@@ -23,90 +23,122 @@
       </div>
     </div>
 
-    <!-- Search -->
-    <div class="flex gap-3">
-      <div class="relative flex-1">
+    <!-- Search + Date filters -->
+    <div class="flex gap-3 flex-wrap items-center">
+      <div class="relative flex-1 min-w-48">
         <MagnifyingGlassIcon class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input v-model="search" placeholder="Search card number, customer, vehicle…" class="form-input pl-9" @input="load" />
       </div>
-      <button v-if="filterStatus || search" @click="filterStatus = ''; search = ''; load()"
-        class="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+      <div class="flex items-center gap-2 shrink-0">
+        <CalendarIcon class="w-4 h-4 text-gray-400" />
+        <input v-model="dateFrom" type="date" class="form-input text-sm w-38" @change="load" title="From date" />
+        <span class="text-gray-400 text-sm">—</span>
+        <input v-model="dateTo" type="date" class="form-input text-sm w-38" @change="load" title="To date" />
+      </div>
+      <button v-if="filterStatus || search || dateFrom || dateTo"
+        @click="filterStatus = ''; search = ''; dateFrom = ''; dateTo = ''; load()"
+        class="px-4 py-2 text-sm text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors shrink-0">
         Clear filters
       </button>
     </div>
 
+    <!-- Skeleton loader -->
+    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+      <div v-for="n in 8" :key="n" class="bg-white rounded-xl border border-gray-200 overflow-hidden animate-pulse">
+        <div class="h-1 w-full bg-gray-200"></div>
+        <div class="p-4 space-y-3">
+          <!-- Top row -->
+          <div class="flex items-center justify-between">
+            <div class="space-y-1.5">
+              <div class="h-3 bg-gray-200 rounded w-28"></div>
+              <div class="h-2.5 bg-gray-100 rounded w-16"></div>
+            </div>
+            <div class="h-5 bg-gray-200 rounded-full w-20"></div>
+          </div>
+          <!-- Customer -->
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-gray-200 shrink-0"></div>
+            <div class="space-y-1.5 flex-1">
+              <div class="h-3 bg-gray-200 rounded w-32"></div>
+              <div class="h-2.5 bg-gray-100 rounded w-20"></div>
+            </div>
+          </div>
+          <!-- Vehicle -->
+          <div class="h-8 bg-gray-100 rounded-lg"></div>
+          <!-- Footer -->
+          <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+            <div class="h-2.5 bg-gray-100 rounded w-20"></div>
+            <div class="h-5 bg-gray-200 rounded w-16"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Tile grid -->
-    <div v-if="cards.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div v-else-if="cards.length" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
       <div v-for="card in cards" :key="card.id"
-        class="bg-white rounded-2xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden"
+        class="bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer group overflow-hidden"
         @click="$router.push(`/job-cards/${card.id}`)">
 
         <!-- Status stripe -->
-        <div class="h-1.5 w-full" :class="statusStripe(card.status)"></div>
+        <div class="h-1 w-full" :class="statusStripe(card.status)"></div>
 
-        <div class="p-5">
+        <div class="p-4">
           <!-- Top row -->
-          <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center justify-between mb-2">
             <div>
-              <p class="font-mono font-bold text-blue-700 text-sm">{{ card.card_number }}</p>
-              <p class="text-xs text-gray-400 mt-0.5">{{ fmtDate(card.created_at) }}</p>
+              <p class="font-mono font-bold text-blue-700 text-xs">{{ card.card_number }}</p>
+              <p class="text-[10px] text-gray-400 mt-0.5">{{ fmtDate(card.created_at) }}</p>
             </div>
-            <span :class="statusClass(card.status)" class="badge capitalize text-xs px-2.5 py-1">
+            <span :class="statusClass(card.status)" class="badge capitalize text-[10px] px-2 py-0.5">
               {{ statusLabel(card.status) }}
             </span>
           </div>
 
-          <!-- Customer -->
-          <div class="flex items-center gap-2.5 mb-3">
-            <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm shrink-0">
+          <!-- Customer + Vehicle inline -->
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs shrink-0">
               {{ (card.customer_name || card.customer?.name || '?')[0].toUpperCase() }}
             </div>
-            <div class="min-w-0">
-              <p class="font-semibold text-gray-900 truncate">{{ card.customer_name || card.customer?.name || 'Walk-in' }}</p>
-              <p class="text-xs text-gray-400 truncate">{{ card.customer_phone || card.customer?.phone || 'No phone' }}</p>
+            <div class="min-w-0 flex-1">
+              <p class="font-semibold text-gray-900 text-sm truncate">{{ card.customer_name || card.customer?.name || 'Walk-in' }}</p>
+              <p class="text-[10px] text-gray-400 truncate">{{ card.customer_phone || card.customer?.phone || 'No phone' }}</p>
             </div>
           </div>
 
           <!-- Vehicle -->
-          <div class="flex items-center gap-2 mb-3 bg-gray-50 rounded-xl px-3 py-2">
-            <TruckIcon class="w-4 h-4 text-gray-400 shrink-0" />
-            <div class="min-w-0 flex-1">
-              <p class="font-mono font-bold text-gray-800 text-sm">{{ card.vehicle_number || '—' }}</p>
-              <p class="text-xs text-gray-400 truncate">{{ [card.vehicle_make, card.vehicle_model].filter(Boolean).join(' ') || 'Unknown vehicle' }}</p>
-            </div>
+          <div class="flex items-center gap-1.5 mb-2 bg-gray-50 rounded-lg px-2.5 py-1.5">
+            <TruckIcon class="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <p class="font-mono font-bold text-gray-800 text-xs">{{ card.vehicle_number || '—' }}</p>
+            <p class="text-[10px] text-gray-400 truncate">{{ [card.vehicle_make, card.vehicle_model].filter(Boolean).join(' ') }}</p>
           </div>
 
           <!-- Complaint preview -->
-          <p v-if="card.complaint" class="text-xs text-gray-500 line-clamp-2 mb-3 italic">
+          <p v-if="card.complaint" class="text-[10px] text-gray-500 line-clamp-1 mb-2 italic">
             "{{ card.complaint }}"
           </p>
 
           <!-- Footer -->
-          <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-            <div class="flex items-center gap-1.5 text-xs text-gray-400">
-              <WrenchScrewdriverIcon class="w-3.5 h-3.5" />
-              {{ card.assigned_technician || 'Unassigned' }}
+          <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+            <div class="flex items-center gap-1 text-[10px] text-gray-400">
+              <WrenchScrewdriverIcon class="w-3 h-3" />
+              <span class="truncate max-w-24">{{ card.assigned_technician || 'Unassigned' }}</span>
             </div>
-            <div class="flex items-center gap-2">
-              <p class="font-bold text-gray-900 text-sm">LKR {{ lkr(card.total) }}</p>
+            <div class="flex items-center gap-1.5">
+              <p class="font-bold text-gray-900 text-xs">LKR {{ lkr(card.total) }}</p>
               <button v-if="card.public_token"
                 @click.stop="receiptToken = card.public_token"
-                class="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-colors">
                 <PrinterIcon class="w-3.5 h-3.5" /> Print
               </button>
             </div>
           </div>
         </div>
-
-        <!-- Hover arrow -->
-        <div class="px-5 pb-3 flex items-center justify-end gap-1 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity -mt-1">
-          Open details <ArrowRightIcon class="w-3.5 h-3.5" />
-        </div>
       </div>
     </div>
 
     <!-- Empty state -->
-    <div v-else class="bg-white rounded-2xl border border-gray-200 py-20 flex flex-col items-center text-gray-400">
+    <div v-else-if="!loading" class="bg-white rounded-2xl border border-gray-200 py-20 flex flex-col items-center text-gray-400">
       <div class="w-20 h-20 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
         <WrenchScrewdriverIcon class="w-10 h-10 text-gray-300" />
       </div>
@@ -248,7 +280,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import {
-  PlusIcon, WrenchScrewdriverIcon, MagnifyingGlassIcon,
+  PlusIcon, WrenchScrewdriverIcon, MagnifyingGlassIcon, CalendarIcon,
   XMarkIcon, ArrowPathIcon, UserIcon, TruckIcon,
   ArrowRightIcon, ChatBubbleLeftIcon, PrinterIcon,
 } from '@heroicons/vue/24/outline'
@@ -256,8 +288,11 @@ import JobCardReceiptModal from '@/components/JobCardReceiptModal.vue'
 
 const router       = useRouter()
 const cards        = ref([])
+const loading      = ref(true)
 const search       = ref('')
 const filterStatus = ref('')
+const dateFrom     = ref('')
+const dateTo       = ref('')
 const showModal    = ref(false)
 const saving       = ref(false)
 const formError    = ref('')
@@ -281,16 +316,17 @@ const form = reactive({
 })
 
 async function load() {
+  loading.value = true
   const { data } = await axios.get('/api/job-cards', {
-    params: { search: search.value, status: filterStatus.value, per_page: 100 },
+    params: { search: search.value, status: filterStatus.value, date_from: dateFrom.value, date_to: dateTo.value, per_page: 100 },
   })
   cards.value  = data.data
-  // Count per status
   const all = data.data
   counts.value = {}
   statuses.forEach(s => {
     counts.value[s.key] = all.filter(c => c.status === s.key).length
   })
+  loading.value = false
 }
 
 function openCreate() {

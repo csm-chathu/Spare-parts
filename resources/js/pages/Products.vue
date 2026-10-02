@@ -389,12 +389,9 @@ async function deleteProduct(p) {
   fetchProducts()
 }
 
-async function onSaved(payload) {
+async function onSaved() {
   showModal.value = false
   await fetchProducts()
-  if (payload?.isNew && payload?.product) {
-    printProductBarcode(payload.product)
-  }
 }
 
 onMounted(() => { fetchProducts(); fetchRefs() })

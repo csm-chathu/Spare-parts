@@ -81,6 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('customers',    CustomerController::class);
     Route::apiResource('sales',        SaleController::class);
     Route::post('/sales/{sale}/settle-booking', [SaleController::class, 'settleBooking']);
+    Route::post('/sales/{sale}/settle',         [SaleController::class, 'settle']);
     Route::post('/sales/{sale}/send-sms',       [SaleController::class, 'sendSms']);
     Route::post('/sales/{sale}/finalize',       [SaleController::class, 'finalize']);
     Route::apiResource('purchases',    PurchaseController::class)->except(['update']);

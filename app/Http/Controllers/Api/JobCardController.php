@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\JobCard;
 use App\Models\JobCardItem;
+use App\Models\JournalEntry;
+use App\Models\JournalEntryLine;
 use App\Models\Product;
 use App\Models\SmsLog;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class JobCardController extends Controller
 {
@@ -25,6 +29,8 @@ class JobCardController extends Controller
                       ->orWhere('customer_phone', 'like', "%$s%")
                 ))
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
+            ->when($request->date_from, fn($q, $v) => $q->whereDate('created_at', '>=', $v))
+            ->when($request->date_to,   fn($q, $v) => $q->whereDate('created_at', '<=', $v))
             ->latest()
             ->paginate($request->per_page ?? 20);
 
@@ -110,6 +116,15 @@ class JobCardController extends Controller
             'bill_discount'        => 'sometimes|numeric|min:0',
         ]);
 
+        // Restore stock if job card is being cancelled
+        if (
+            isset($data['status']) &&
+            $data['status'] === 'cancelled' &&
+            $jobCard->status !== 'cancelled'
+        ) {
+            $this->restoreStock($jobCard);
+        }
+
         $jobCard->update($data);
 
         return response()->json($jobCard->load(['customer:id,name,phone', 'items.product:id,name,sku']));
@@ -129,6 +144,19 @@ class JobCardController extends Controller
         $data['discount'] = $data['discount'] ?? 0;
         $data['total']    = ($data['quantity'] * $data['unit_price']) - $data['discount'];
 
+        // Deduct stock for part items
+        if ($data['type'] === 'part' && ! empty($data['product_id'])) {
+            $product = Product::find($data['product_id']);
+            if ($product) {
+                if ($product->stock_quantity < $data['quantity']) {
+                    return response()->json([
+                        'message' => "Insufficient stock for \"{$product->name}\". Available: {$product->stock_quantity}",
+                    ], 422);
+                }
+                $product->decrement('stock_quantity', $data['quantity']);
+            }
+        }
+
         $item = $jobCard->items()->create($data);
         $jobCard->recalcTotal();
 
@@ -138,6 +166,13 @@ class JobCardController extends Controller
     public function removeItem(JobCard $jobCard, JobCardItem $item)
     {
         abort_unless($item->job_card_id === $jobCard->id, 404);
+
+        // Restore stock for part items
+        if ($item->type === 'part' && $item->product_id) {
+            Product::where('id', $item->product_id)
+                ->increment('stock_quantity', $item->quantity);
+        }
+
         $item->delete();
         $jobCard->recalcTotal();
 
@@ -154,6 +189,84 @@ class JobCardController extends Controller
             'status'       => 'completed',
             'completed_at' => now(),
         ]);
+
+        // Post to journal (best-effort — don't block completion if accounts missing)
+        try {
+            $netTotal = max(0, $jobCard->total - ($jobCard->bill_discount ?? 0));
+            if ($netTotal > 0 && !$jobCard->journal_entry_id) {
+                $revenue    = Account::where('code', '4000')->first();
+                $cogs       = Account::where('code', '5000')->first();
+                $inventory  = Account::where('code', '1200')->first();
+                $receivable = Account::where('code', '1100')->first();
+
+                if ($revenue) {
+                    $seq = JournalEntry::whereDate('created_at', today())->withTrashed()->count() + 1;
+                    $entryNumber = 'JE-' . date('Ymd') . '-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+
+                    $entry = JournalEntry::create([
+                        'entry_number'   => $entryNumber,
+                        'entry_date'     => now(),
+                        'description'    => "Service revenue – Job Card {$jobCard->card_number}",
+                        'reference_type' => 'JobCard',
+                        'reference_id'   => $jobCard->id,
+                        'branch_id'      => $jobCard->branch_id,
+                        'created_by'     => $request->user()->id,
+                        'status'         => 'posted',
+                    ]);
+
+                    // Dr Accounts Receivable / Cr Service Revenue
+                    if ($receivable) {
+                        JournalEntryLine::create([
+                            'journal_entry_id' => $entry->id,
+                            'account_id'       => $receivable->id,
+                            'debit'            => $netTotal,
+                            'credit'           => 0,
+                            'description'      => 'Job card service receivable',
+                        ]);
+                    }
+                    JournalEntryLine::create([
+                        'journal_entry_id' => $entry->id,
+                        'account_id'       => $revenue->id,
+                        'debit'            => 0,
+                        'credit'           => $netTotal,
+                        'description'      => 'Job card service revenue',
+                    ]);
+
+                    // COGS for part items
+                    if ($cogs && $inventory) {
+                        $costTotal = round(
+                            $jobCard->items()
+                                ->where('type', 'part')
+                                ->whereNotNull('product_id')
+                                ->with('product:id,purchase_price')
+                                ->get()
+                                ->sum(fn($i) => ($i->product->purchase_price ?? 0) * $i->quantity),
+                            2
+                        );
+                        if ($costTotal > 0) {
+                            JournalEntryLine::create([
+                                'journal_entry_id' => $entry->id,
+                                'account_id'       => $cogs->id,
+                                'debit'            => $costTotal,
+                                'credit'           => 0,
+                                'description'      => 'Cost of parts used in job card',
+                            ]);
+                            JournalEntryLine::create([
+                                'journal_entry_id' => $entry->id,
+                                'account_id'       => $inventory->id,
+                                'debit'            => 0,
+                                'credit'           => $costTotal,
+                                'description'      => 'Inventory reduced for job card parts',
+                            ]);
+                        }
+                    }
+
+                    $jobCard->update(['journal_entry_id' => $entry->id]);
+                }
+            }
+        } catch (\Throwable) {
+            // Journal posting failed silently — completion still succeeds
+        }
 
         // SMS on completion
         $phone = $jobCard->customer_phone
@@ -183,12 +296,26 @@ class JobCardController extends Controller
             ]);
         }
 
-        return response()->json($jobCard->load(['customer:id,name,phone', 'items.product:id,name,sku']));
+        return response()->json($jobCard->load(['customer:id,name,phone', 'items.product:id,name,sku', 'journalEntry:id,entry_number']));
     }
 
     public function destroy(JobCard $jobCard)
     {
+        // Restore stock for all part items before deleting
+        $this->restoreStock($jobCard);
         $jobCard->delete();
         return response()->json(['message' => 'Job card deleted']);
+    }
+
+    private function restoreStock(JobCard $jobCard): void
+    {
+        $jobCard->items()
+            ->where('type', 'part')
+            ->whereNotNull('product_id')
+            ->get()
+            ->each(fn($item) =>
+                Product::where('id', $item->product_id)
+                    ->increment('stock_quantity', $item->quantity)
+            );
     }
 }
