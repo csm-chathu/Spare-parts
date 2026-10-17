@@ -10,8 +10,8 @@ return [
      * they fall back to the shared credentials below.
      */
     'tenants' => [
-        'siril.lumac.cc' => [
-            'db_database' => 'siril_motors',
+        'pos-new.sirilmotors.com' => [
+            'db_database' => 'sirifwfq_erp',
         ],
         'hero-spare.lumac.cc' => [
             'db_database' => 'hero_spare',
