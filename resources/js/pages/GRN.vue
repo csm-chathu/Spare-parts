@@ -459,9 +459,8 @@
                 <tbody class="divide-y">
                   <tr v-for="(item, idx) in directGRN.items" :key="idx">
                     <td class="px-3 py-2">
-                      <SearchableSelect v-model="item.product_id" :options="productOptions"
-                        :search-keys="['part_number']"
-                        placeholder="Search name or part no…" @update:modelValue="() => prefillDG(item)" />
+                      <SearchableSelect v-model="item.product_id" :async-search="searchProducts"
+                        placeholder="Search name or part no…" @select="(opt) => prefillDG(item, opt)" />
                     </td>
                     <td class="px-3 py-2">
                       <input v-model.number="item.ordered_quantity" type="number" min="1" class="form-input text-right" />
@@ -510,7 +509,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import axios from 'axios'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 
@@ -518,7 +517,6 @@ const activeTab    = ref('grn')
 const grns         = ref([])
 const pendingPOs   = ref([])
 const suppliers    = ref([])
-const products     = ref([])
 const loadingGRN   = ref(false)
 const loadingPending = ref(false)
 const grnPage      = ref(1)
@@ -544,10 +542,14 @@ const directGRN    = reactive({
   notes: '', items: [], error: '', submitting: false,
 })
 
-const productOptions = computed(() => products.value.map(p => ({
-  ...p,
-  sub: [p.part_number, p.sku].filter(Boolean).join(' · '),
-})))
+async function searchProducts(q) {
+  const { data } = await axios.get('/api/products', { params: { search: q, per_page: 30 } })
+  return (data.data ?? data).map(p => ({
+    ...p,
+    name: p.part_number || p.name,
+    sub: p.name,
+  }))
+}
 
 const blankDGItem = () => ({
   product_id: '', ordered_quantity: 1, unit_cost: 0, selling_price: 0,
@@ -574,12 +576,8 @@ async function fetchPendingPOs() {
 }
 
 async function fetchSupport() {
-  const [sup, prod] = await Promise.all([
-    axios.get('/api/suppliers', { params: { per_page: 500 } }),
-    axios.get('/api/products',  { params: { per_page: 1000 } }),
-  ])
-  suppliers.value = sup.data.data ?? sup.data
-  products.value  = prod.data.data ?? prod.data
+  const { data } = await axios.get('/api/suppliers', { params: { per_page: 500 } })
+  suppliers.value = data.data ?? data
 }
 
 async function viewGRN(grn) {
@@ -638,11 +636,10 @@ function openDirectGRN() {
   })
 }
 
-function prefillDG(item) {
-  const p = products.value.find(x => x.id === item.product_id)
-  if (p) {
-    item.unit_cost     = p.purchase_price ?? 0
-    item.selling_price = p.selling_price  ?? 0
+function prefillDG(item, opt) {
+  if (opt) {
+    item.unit_cost     = opt.purchase_price ?? 0
+    item.selling_price = opt.selling_price  ?? 0
   }
 }
 
