@@ -119,8 +119,8 @@
                 <p class="text-xs text-gray-400 mt-1">Used to log in. Letters, numbers, _ and - only.</p>
               </div>
               <div>
-                <label class="form-label">Email <span class="text-red-500">*</span></label>
-                <input v-model="form.email" type="email" required class="form-input" placeholder="john@sirilmotors.com" />
+                <label class="form-label">Email / Username <span class="text-red-500">*</span></label>
+                <input v-model="form.email" type="text" required class="form-input" placeholder="john@sirilmotors.com or admin" />
               </div>
               <div>
                 <label class="form-label">{{ editing ? 'New Password' : 'Password' }} <span class="text-red-500">*</span></label>

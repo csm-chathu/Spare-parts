@@ -92,7 +92,7 @@
 
           <!-- Username -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Username or Email</label>
             <div class="relative">
               <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -101,7 +101,7 @@
               </span>
               <input v-model="form.username" type="text" required autocomplete="username"
                 class="field-input pl-10 pr-4"
-                placeholder="your username" />
+                placeholder="username or email" />
             </div>
           </div>
 
@@ -199,7 +199,7 @@ async function submit() {
     await auth.login(form.username, form.password)
     router.push('/')
   } catch (e) {
-    error.value = e.response?.data?.message ?? 'Invalid email or password'
+    error.value = e.response?.data?.message ?? 'Invalid username or password'
   } finally {
     loading.value = false
   }

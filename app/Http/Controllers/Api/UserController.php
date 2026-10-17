@@ -36,7 +36,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'                   => 'required|string|max:255',
             'username'               => 'required|string|max:50|alpha_dash|unique:users,username',
-            'email'                  => 'required|email|unique:users,email',
+            'email'                  => 'required|string|max:255|unique:users,email',
             'password'               => 'required|string|min:6',
             'role'                   => 'required|in:' . implode(',', self::ROLES),
             'branch_id'              => 'nullable|exists:branches,id',
@@ -62,7 +62,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name'                   => 'sometimes|string|max:255',
             'username'               => "sometimes|string|max:50|alpha_dash|unique:users,username,{$user->id}",
-            'email'                  => "sometimes|email|unique:users,email,{$user->id}",
+            'email'                  => "sometimes|string|max:255|unique:users,email,{$user->id}",
             'password'               => 'nullable|string|min:6',
             'role'                   => 'sometimes|in:' . implode(',', self::ROLES),
             'branch_id'              => 'nullable|exists:branches,id',
