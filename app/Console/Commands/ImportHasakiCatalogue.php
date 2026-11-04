@@ -40,7 +40,7 @@ class ImportHasakiCatalogue extends Command
 
         $branch    = Branch::where('code', 'MAIN')->first() ?? Branch::first();
         $supplier  = Supplier::firstOrCreate(
-            ['name' => 'Hasaki Lanka (Pvt) Ltd.'],
+            ['name' => 'Semini Motors (Pvt) Ltd'],
             ['is_active' => true, 'branch_id' => $branch?->id]
         );
         $partBrand = PartBrand::firstOrCreate(['name' => 'Hasaki']);
@@ -122,7 +122,7 @@ class ImportHasakiCatalogue extends Command
         PdfImportLog::updateOrCreate(
             ['filename' => $this->option('pdf')],
             [
-                'supplier'    => 'Hasaki Lanka — Brake & Clutch Hydraulic',
+                'supplier'    => 'Semini Motors (Pvt) Ltd — Hasaki Brake & Clutch Hydraulic',
                 'status'      => 'imported',
                 'total_rows'  => count($rows),
                 'imported'    => $imported,

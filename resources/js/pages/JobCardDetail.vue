@@ -76,17 +76,18 @@
               <div v-else class="relative">
                 <input v-model="productSearch"
                   class="form-input text-sm" placeholder="Search part name or SKU…"
-                  @input="itemForm.product_id = null; itemForm.description = productSearch"
+                  @input="onProductInput"
                   @focus="showProductDd = true"
                   @keydown.esc="showProductDd = false" />
-                <div v-if="showProductDd && productResults.length"
+                <div v-if="showProductDd && (productLoading || productResults.length)"
                   class="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+                  <div v-if="productLoading" class="px-3 py-2.5 text-xs text-gray-400">Searching…</div>
                   <button v-for="p in productResults" :key="p.id" type="button"
                     class="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
                     @mousedown.prevent="selectProduct(p)">
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</p>
-                      <p class="text-xs text-gray-400">SKU: {{ p.sku }}</p>
+                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.part_number || p.name }}</p>
+                      <p class="text-xs text-gray-400">{{ p.name }}</p>
                     </div>
                     <div class="text-right text-xs shrink-0">
                       <p class="font-bold text-blue-700">LKR {{ lkr(p.selling_price) }}</p>
@@ -489,17 +490,30 @@ const editForm = reactive({
 })
 
 // Product search
-const products      = ref([])
-const employees     = ref([])
-const productSearch = ref('')
-const showProductDd = ref(false)
-const productResults = computed(() => {
-  const q = productSearch.value.trim().toLowerCase()
-  if (!q) return []
-  return products.value.filter(p =>
-    [p.name, p.sku, p.barcode].some(f => f?.toLowerCase().includes(q))
-  ).slice(0, 10)
-})
+const employees      = ref([])
+const productSearch  = ref('')
+const showProductDd  = ref(false)
+const productResults = ref([])
+const productLoading = ref(false)
+let productTimer = null
+
+function onProductInput() {
+  itemForm.product_id  = null
+  itemForm.description = productSearch.value
+  showProductDd.value  = true
+  clearTimeout(productTimer)
+  const q = productSearch.value.trim()
+  if (!q) { productResults.value = []; return }
+  productLoading.value = true
+  productTimer = setTimeout(async () => {
+    try {
+      const { data } = await axios.get('/api/products', { params: { search: q, per_page: 10 } })
+      productResults.value = data.data ?? data
+    } finally {
+      productLoading.value = false
+    }
+  }, 300)
+}
 
 const itemForm = reactive({
   type: 'part', description: '', product_id: null,
@@ -514,6 +528,7 @@ function onTypeChange() {
   itemForm.description = ''
   itemForm.product_id  = null
   productSearch.value  = ''
+  productResults.value = []
 }
 
 function selectProduct(p) {
@@ -545,7 +560,8 @@ async function addItem() {
     await axios.post(`/api/job-cards/${card.value.id}/items`, itemForm)
     await load()
     Object.assign(itemForm, { type: 'part', description: '', product_id: null, quantity: 1, unit_price: 0, discount: 0 })
-    productSearch.value = ''
+    productSearch.value  = ''
+    productResults.value = []
   } catch (e) {
     itemError.value = e.response?.data?.message ?? 'Failed to add item'
   } finally { addingItem.value = false }
@@ -653,11 +669,7 @@ function statusClass(s) {
 
 onMounted(async () => {
   await load()
-  const [productsRes, employeesRes] = await Promise.all([
-    axios.get('/api/products', { params: { per_page: 500 } }),
-    axios.get('/api/employees/all').catch(() => ({ data: [] })),
-  ])
-  products.value  = productsRes.data.data
-  employees.value = employeesRes.data
+  const { data } = await axios.get('/api/employees/all').catch(() => ({ data: { data: [] } }))
+  employees.value = data.data ?? data
 })
 </script>

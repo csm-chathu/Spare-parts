@@ -40,7 +40,7 @@ class ImportSeikenCatalogue extends Command
 
         $branch    = Branch::where('code', 'MAIN')->first() ?? Branch::first();
         $supplier  = Supplier::firstOrCreate(
-            ['name' => 'Seiken Japan Distributors'],
+            ['name' => 'Semini Motors (Pvt) Ltd'],
             ['is_active' => true, 'branch_id' => $branch?->id]
         );
         $partBrand = PartBrand::firstOrCreate(['name' => 'Seiken']);
@@ -122,7 +122,7 @@ class ImportSeikenCatalogue extends Command
         PdfImportLog::updateOrCreate(
             ['filename' => $this->option('pdf')],
             [
-                'supplier'    => 'Seiken Japan — Brake & Clutch Parts',
+                'supplier'    => 'Semini Motors (Pvt) Ltd — Seiken Brake & Clutch Parts',
                 'status'      => 'imported',
                 'total_rows'  => count($rows),
                 'imported'    => $imported,

@@ -41,7 +41,7 @@ class ImportCwPricelistCatalogue extends Command
 
         $branch   = Branch::where('code', 'MAIN')->first() ?? Branch::first();
         $supplier = Supplier::firstOrCreate(
-            ['name' => 'CW Auto Parts'],
+            ['name' => 'Toyotsu Lanka (Pvt) Ltd'],
             ['is_active' => true, 'branch_id' => $branch?->id]
         );
         $partBrand = PartBrand::firstOrCreate(['name' => 'CW']);
@@ -131,7 +131,7 @@ class ImportCwPricelistCatalogue extends Command
         PdfImportLog::updateOrCreate(
             ['filename' => $this->option('pdf')],
             [
-                'supplier'    => 'CW Auto Parts — Multi-Category Price List',
+                'supplier'    => 'Toyotsu Lanka (Pvt) Ltd — Multi-Category Price List',
                 'status'      => 'imported',
                 'total_rows'  => count($rows),
                 'imported'    => $imported,

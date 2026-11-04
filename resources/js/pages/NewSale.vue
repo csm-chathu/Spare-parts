@@ -24,13 +24,13 @@
       <div class="flex-1 flex flex-col min-w-0 bg-white">
 
         <!-- ADD ITEM bar -->
-        <div class="px-5 py-3 border-b border-gray-200 shrink-0 bg-gray-50">
+        <div class="px-5 py-3 border-b border-gray-200 shrink-0 bg-gray-50 overflow-x-auto">
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
             <PlusCircleIcon class="w-3.5 h-3.5" /> Add Item
           </p>
-          <div class="flex items-end gap-3">
+          <div class="flex items-end gap-2 min-w-max">
             <!-- Type -->
-            <div class="w-32 shrink-0">
+            <div class="w-28 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
               <select v-model="newItem.type" class="form-input text-sm" @change="onNewItemTypeChange">
                 <option value="part">Part</option>
@@ -45,43 +45,44 @@
                 class="form-input text-sm" placeholder="e.g. Engine oil change" />
               <div v-else class="relative">
                 <input v-model="newItemSearch" class="form-input text-sm" placeholder="Search part name or SKU…"
-                  @input="newItem.product_id = ''; newItem.description = newItemSearch; showNewItemDd = !!newItemSearch.trim()"
+                  @input="onNewItemInput"
                   @focus="showNewItemDd = !!newItemSearch.trim()"
                   @keydown.esc="showNewItemDd = false" />
                 <div v-if="showNewItemDd" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
-                  <button v-for="p in searchProducts(newItemSearch)" :key="p.id" type="button"
+                  <div v-if="newItemLoading" class="px-3 py-3 text-sm text-gray-400 text-center">Searching…</div>
+                  <button v-for="p in newItemResults" :key="p.id" type="button"
                     class="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
                     @mousedown.prevent="pickNewItemProduct(p)">
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.name }}</p>
-                      <p class="text-[11px] text-gray-400">SKU: {{ p.sku }} · Stock: {{ p.stock_quantity }}</p>
+                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.part_number || p.name }}</p>
+                      <p class="text-[11px] text-gray-400">{{ p.name }} · Stock: {{ p.stock_quantity }}</p>
                     </div>
                     <span class="font-bold text-blue-700 text-sm shrink-0">LKR {{ Number(p.selling_price).toLocaleString() }}</span>
                   </button>
-                  <div v-if="!searchProducts(newItemSearch).length" class="px-3 py-3 text-sm text-gray-400 text-center">No parts found</div>
+                  <div v-if="!newItemLoading && !newItemResults.length" class="px-3 py-3 text-sm text-gray-400 text-center">No parts found</div>
                 </div>
               </div>
             </div>
             <!-- Qty -->
-            <div class="w-20 shrink-0">
+            <div class="w-14 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Qty</label>
               <input v-model.number="newItem.quantity" type="number" min="1" step="1"
                 @focus="$event.target.select()" class="form-input text-sm text-center" />
             </div>
             <!-- Unit Price -->
-            <div class="w-28 shrink-0">
+            <div class="w-24 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Unit Price</label>
               <input v-model.number="newItem.unit_price" type="number" min="0" step="1"
                 @focus="$event.target.select()" class="form-input text-sm" />
             </div>
             <!-- Discount -->
-            <div class="w-24 shrink-0">
+            <div class="w-20 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Discount</label>
               <input v-model.number="newItem.discount" type="number" min="0" step="1"
                 @focus="$event.target.select()" class="form-input text-sm" />
             </div>
             <!-- Line total -->
-            <div class="w-32 shrink-0">
+            <div class="w-28 shrink-0">
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Line Total</label>
               <div class="form-input text-sm font-bold text-blue-700 bg-blue-50 border-blue-200 text-right">
                 LKR {{ lkr(Math.max(0, newItem.quantity * newItem.unit_price - (newItem.discount || 0))) }}
@@ -89,7 +90,7 @@
             </div>
             <!-- Add button -->
             <button @click="addNewItem"
-              class="shrink-0 inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors">
+              class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors">
               <PlusIcon class="w-4 h-4" /> Add
             </button>
           </div>
@@ -355,7 +356,6 @@ import {
 } from '@heroicons/vue/24/outline'
 
 const router        = useRouter()
-const products      = ref([])
 const customers     = ref([])
 const customerOptions = computed(() =>
   customers.value.map(c => ({ id: c.id, name: c.name, sub: c.phone || '' }))
@@ -370,27 +370,54 @@ const newCustomerError = ref('')
 const newCustomer      = reactive({ name: '', phone: '', vehicle_number: '' })
 
 // ADD ITEM bar state
-const newItemSearch  = ref('')
-const showNewItemDd  = ref(false)
-const addItemError   = ref('')
+const newItemSearch    = ref('')
+const showNewItemDd    = ref(false)
+const newItemResults   = ref([])
+const newItemLoading   = ref(false)
+const selectedProduct  = ref(null)
+const addItemError     = ref('')
 const newItem = reactive({ type: 'part', description: '', product_id: '', quantity: 1, unit_price: 0, discount: 0 })
+let newItemTimer = null
+
+function onNewItemInput() {
+  newItem.product_id  = ''
+  newItem.description = newItemSearch.value
+  selectedProduct.value = null
+  clearTimeout(newItemTimer)
+  const q = newItemSearch.value.trim()
+  if (!q) { showNewItemDd.value = false; newItemResults.value = []; return }
+  showNewItemDd.value  = true
+  newItemLoading.value = true
+  newItemTimer = setTimeout(async () => {
+    try {
+      const { data } = await axios.get('/api/products', { params: { search: q, per_page: 20 } })
+      newItemResults.value = data.data ?? data
+    } finally {
+      newItemLoading.value = false
+    }
+  }, 300)
+}
 
 function onNewItemTypeChange() {
   newItem.product_id  = ''
   newItem.description = ''
   newItemSearch.value = ''
   showNewItemDd.value = false
+  newItemResults.value = []
+  selectedProduct.value = null
   newItem.unit_price  = 0
   newItem.discount    = 0
   newItem.quantity    = 1
 }
 
 function pickNewItemProduct(p) {
+  selectedProduct.value = p
   newItem.product_id  = p.id
   newItem.description = p.name
   newItem.unit_price  = p.selling_price
-  newItemSearch.value = p.name
+  newItemSearch.value = p.part_number || p.name
   showNewItemDd.value = false
+  newItemResults.value = []
 }
 
 function addNewItem() {
@@ -408,7 +435,7 @@ function addNewItem() {
     return
   }
   const lineTotal = (newItem.unit_price * newItem.quantity) - (newItem.discount || 0)
-  const p = newItem.type === 'part' ? products.value.find(x => x.id == newItem.product_id) : null
+  const p = newItem.type === 'part' ? selectedProduct.value : null
   form.items.push({
     type:        newItem.type,
     description: newItem.description,
@@ -426,8 +453,10 @@ function addNewItem() {
   newItem.unit_price  = 0
   newItem.discount    = 0
   newItem.quantity    = 1
-  newItemSearch.value = ''
-  showNewItemDd.value = false
+  newItemSearch.value  = ''
+  newItemResults.value = []
+  selectedProduct.value = null
+  showNewItemDd.value  = false
 }
 
 const form = reactive({
@@ -436,20 +465,6 @@ const form = reactive({
   items: [],
 })
 
-function normalizeText(value) {
-  return String(value ?? '').toLowerCase().trim()
-}
-
-function searchProducts(term) {
-  const query = normalizeText(term)
-  return products.value
-    .filter(p => {
-      if (!query) return true
-      return [p.name, p.sku, p.barcode, p.part_category?.name, p.brand?.name, p.model?.name]
-        .some(f => normalizeText(f).includes(query))
-    })
-    .slice(0, 20)
-}
 
 function removeItem(i) { form.items.splice(i, 1); recalc() }
 
@@ -554,12 +569,10 @@ async function submit(asDraft = false) {
 }
 
 onMounted(async () => {
-  const [p, c, t] = await Promise.all([
-    axios.get('/api/products', { params: { per_page: 500 } }),
+  const [c, t] = await Promise.all([
     axios.get('/api/customers/all'),
     axios.get('/api/tax-settings'),
   ])
-  products.value  = p.data.data
   customers.value = c.data
   taxes.value     = t.data.filter(x => x.is_active)
 })

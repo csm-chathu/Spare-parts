@@ -34,7 +34,7 @@ class ImportEniPowerCatalogue extends Command
 
         $branch    = Branch::where('code', 'MAIN')->first() ?? Branch::first();
         $supplier  = Supplier::firstOrCreate(
-            ['name' => 'ENI Lanka (Pvt) Ltd.'],
+            ['name' => 'Ideal Premier (Pvt) Ltd'],
             ['is_active' => true, 'branch_id' => $branch?->id]
         );
         $partBrand    = PartBrand::firstOrCreate(['name' => 'ENI & POWER']);
@@ -93,7 +93,7 @@ class ImportEniPowerCatalogue extends Command
         PdfImportLog::updateOrCreate(
             ['filename' => $this->option('pdf')],
             [
-                'supplier'    => 'ENI Lanka — Lubricants',
+                'supplier'    => 'Ideal Premier (Pvt) Ltd — ENI & Power Oil',
                 'status'      => 'imported',
                 'total_rows'  => count($rows),
                 'imported'    => $imported,
