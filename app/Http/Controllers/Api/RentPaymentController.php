@@ -20,9 +20,8 @@ class RentPaymentController extends Controller
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
             ->when($request->month, fn($q, $v) => $q->where('month', $v))
             ->when($request->search, fn($q, $v) => $q->where(function ($x) use ($v) {
-                $x->where('rent_number', 'like', "%{$v}%")
-                    ->orWhere('property_name', 'like', "%{$v}%")
-                    ->orWhere('landlord_name', 'like', "%{$v}%");
+                $x->whereRaw('MATCH(property_name, landlord_name) AGAINST(? IN BOOLEAN MODE)', ["{$v}*"])
+                    ->orWhere('rent_number', 'like', "{$v}%");
             }))
             ->orderByDesc('due_date')
             ->paginate(20);

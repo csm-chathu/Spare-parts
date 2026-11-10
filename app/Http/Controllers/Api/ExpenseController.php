@@ -41,7 +41,7 @@ class ExpenseController extends Controller
 
         // Search by description
         if ($request->search) {
-            $query->where('description', 'like', "%{$request->search}%");
+            $query->whereRaw('MATCH(description) AGAINST(? IN BOOLEAN MODE)', ["{$request->search}*"]);
         }
 
         $expenses = $query->latest('expense_date')->paginate($request->per_page ?? 20);

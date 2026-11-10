@@ -52,143 +52,146 @@
       <div class="flex-1 flex flex-col min-w-0 bg-gray-50">
 
         <!-- Add item form -->
-        <div v-if="!['completed','delivered','cancelled'].includes(card.status)"
-          class="bg-white border-b border-gray-200 px-6 py-4 shrink-0">
-          <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <PlusCircleIcon class="w-3.5 h-3.5" /> Add Item
-          </p>
-          <div class="flex gap-3 items-end flex-wrap">
+        <!-- Items list -->
+        <div class="flex-1 overflow-y-auto">
+
+          <!-- Table header -->
+          <div v-if="card.items?.length" class="sticky top-0 flex items-center gap-2 px-6 py-2.5 bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <span class="w-20 shrink-0">Type</span>
+            <span class="flex-1">Description</span>
+            <span class="w-16 shrink-0 text-right">Qty</span>
+            <span class="w-28 shrink-0 text-right">Unit Price</span>
+            <span class="w-24 shrink-0 text-right">Discount</span>
+            <span class="w-28 shrink-0 text-right">Total</span>
+            <span class="w-8 shrink-0"></span>
+          </div>
+
+          <!-- Item rows -->
+          <div v-for="item in card.items" :key="item.id"
+            class="flex items-center gap-2 px-6 py-4 bg-white border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
+            <span class="w-20 shrink-0">
+              <span :class="{
+                'bg-blue-100 text-blue-700': item.type === 'part',
+                'bg-green-100 text-green-700': item.type === 'labour',
+                'bg-gray-100 text-gray-600': item.type === 'other',
+              }" class="badge capitalize text-xs">{{ item.type }}</span>
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-800 text-sm truncate">{{ item.description }}</p>
+              <p v-if="item.product" class="text-xs text-gray-400">SKU: {{ item.product.sku }}</p>
+            </div>
+            <span class="w-16 shrink-0 text-right text-sm text-gray-600">{{ item.quantity }}</span>
+            <span class="w-28 shrink-0 text-right text-sm text-gray-600">{{ lkr(item.unit_price) }}</span>
+            <span class="w-24 shrink-0 text-right text-sm text-red-400">
+              {{ item.discount > 0 ? `−${lkr(item.discount)}` : '—' }}
+            </span>
+            <span class="w-28 shrink-0 text-right font-bold text-blue-700 text-sm">LKR {{ lkr(item.total) }}</span>
+            <div class="w-8 shrink-0 flex justify-end">
+              <button v-if="!['completed','delivered','cancelled'].includes(card.status)"
+                @click="removeItem(item)"
+                class="p-1.5 rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors">
+                <TrashIcon class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <!-- ── Inline add row ── -->
+          <div v-if="!['completed','delivered','cancelled'].includes(card.status)"
+            class="flex items-center gap-2 px-6 py-2 border-b border-dashed border-blue-200 bg-blue-50/40">
             <!-- Type -->
-            <div class="w-32 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
-              <select v-model="itemForm.type" class="form-input text-sm" @change="onTypeChange">
+            <div class="w-20 shrink-0">
+              <select v-model="itemForm.type" class="form-input text-xs py-1 px-1.5 w-full" @change="onTypeChange">
                 <option value="part">Part</option>
                 <option value="labour">Labour</option>
                 <option value="other">Other</option>
               </select>
             </div>
-
-            <!-- Description / Product search -->
-            <div class="relative flex-1 min-w-48">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Description</label>
+            <!-- Description / search -->
+            <div class="flex-1 min-w-0" ref="itemSearchContainer">
               <input v-if="itemForm.type !== 'part'" v-model="itemForm.description"
-                class="form-input text-sm" placeholder="e.g. Engine oil change" />
-              <div v-else class="relative">
-                <input v-model="productSearch"
-                  class="form-input text-sm" placeholder="Search part name or SKU…"
-                  @input="onProductInput"
-                  @focus="showProductDd = true"
-                  @keydown.esc="showProductDd = false" />
-                <div v-if="showProductDd && (productLoading || productResults.length)"
-                  class="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
-                  <div v-if="productLoading" class="px-3 py-2.5 text-xs text-gray-400">Searching…</div>
-                  <button v-for="p in productResults" :key="p.id" type="button"
-                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                    @mousedown.prevent="selectProduct(p)">
+                ref="itemDescRef"
+                class="form-input text-sm w-full" placeholder="Description…"
+                @keydown.enter.prevent="itemQtyRef?.focus()" />
+              <input v-else v-model="productSearch"
+                ref="itemDescRef"
+                class="form-input text-sm w-full" placeholder="Search part name or SKU…"
+                @input="onProductInput"
+                @focus="onProductFocus"
+                @keydown.esc="showProductDd = false; productDdIndex = -1"
+                @keydown.enter.prevent="onItemEnter"
+                @keydown.arrow-down.prevent="onItemArrow(1)"
+                @keydown.arrow-up.prevent="onItemArrow(-1)" />
+              <Teleport to="body">
+                <div v-if="showProductDd && itemDdPos.width && (productLoading || productResults.length)"
+                  ref="itemDdRef"
+                  class="fixed z-[9999] max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl"
+                  :style="{ top: itemDdPos.top + 'px', left: itemDdPos.left + 'px', width: itemDdPos.width + 'px' }">
+                  <div v-if="productLoading" class="px-3 py-2.5 text-xs text-gray-400 text-center">Searching…</div>
+                  <button v-for="(p, idx) in productResults" :key="p.id" type="button"
+                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left border-b border-gray-100 last:border-b-0 transition-colors"
+                    :class="idx === productDdIndex ? 'bg-blue-100 text-blue-800' : 'hover:bg-blue-50 text-gray-700'"
+                    @mousedown.prevent="selectProduct(p)"
+                    @mousemove="productDdIndex = idx">
                     <div class="min-w-0 flex-1">
-                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.part_number || p.name }}</p>
-                      <p class="text-xs text-gray-400">{{ p.name }}</p>
+                      <p class="text-sm font-semibold truncate">{{ p.part_number || p.name }}</p>
+                      <p class="text-xs text-gray-400">{{ p.name }} · Stock: {{ p.stock_quantity }}</p>
                     </div>
                     <div class="text-right text-xs shrink-0">
                       <p class="font-bold text-blue-700">LKR {{ lkr(p.selling_price) }}</p>
-                      <p class="text-gray-400">Stock: {{ p.stock_quantity }}</p>
                     </div>
                   </button>
                 </div>
-              </div>
+              </Teleport>
             </div>
-
             <!-- Qty -->
-            <div class="w-20 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Qty</label>
+            <div class="w-16 shrink-0">
               <input v-model.number="itemForm.quantity" type="number" min="1" step="1"
-                @input="itemForm.quantity = Math.floor(itemForm.quantity)" @focus="$event.target.select()"
-                class="form-input text-sm text-center" />
+                ref="itemQtyRef"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="itemPriceRef?.focus()"
+                class="form-input text-sm text-center w-full" />
             </div>
-            <!-- Price -->
+            <!-- Unit price -->
             <div class="w-28 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Unit Price</label>
               <input v-model.number="itemForm.unit_price" type="number" min="0" step="1"
-                @input="itemForm.unit_price = Math.floor(itemForm.unit_price)" @focus="$event.target.select()"
-                class="form-input text-sm" />
+                ref="itemPriceRef"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="itemDiscRef?.focus()"
+                class="form-input text-sm text-right w-full" />
             </div>
             <!-- Discount -->
             <div class="w-24 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Discount</label>
               <input v-model.number="itemForm.discount" type="number" min="0" step="1"
-                @input="itemForm.discount = Math.floor(itemForm.discount)" @focus="$event.target.select()"
-                class="form-input text-sm" />
+                ref="itemDiscRef"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="addItem"
+                class="form-input text-sm text-right w-full" />
             </div>
-            <!-- Total preview -->
-            <div class="w-28 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Line Total</label>
-              <div class="form-input text-sm font-bold text-blue-700 bg-blue-50 border-blue-200">
-                LKR {{ lkr(itemLineTotal) }}
-              </div>
+            <!-- Line total -->
+            <div class="w-28 shrink-0 text-right text-sm font-bold text-blue-700">
+              LKR {{ lkr(itemLineTotal) }}
             </div>
             <!-- Add button -->
-            <button @click="addItem" :disabled="addingItem"
-              class="inline-flex items-center gap-1.5 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-colors shrink-0">
-              <ArrowPathIcon v-if="addingItem" class="w-4 h-4 animate-spin" />
-              <PlusIcon v-else class="w-4 h-4" />
-              Add
-            </button>
+            <div class="w-8 shrink-0 flex justify-end">
+              <button @click="addItem" :disabled="addingItem"
+                class="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white transition-colors">
+                <ArrowPathIcon v-if="addingItem" class="w-3.5 h-3.5 animate-spin" />
+                <PlusIcon v-else class="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-          <p v-if="itemError" class="mt-2 text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-lg">{{ itemError }}</p>
-        </div>
+          <p v-if="itemError" class="px-6 py-1.5 text-xs text-red-600 flex items-center gap-1 bg-red-50">
+            {{ itemError }}
+          </p>
 
-        <!-- Items list -->
-        <!-- Scrollable items -->
-        <div class="flex-1 overflow-y-auto">
-          <!-- Empty -->
+          <!-- Empty state -->
           <div v-if="!card.items?.length"
-            class="flex flex-col items-center justify-center h-full text-gray-400">
+            class="flex flex-col items-center justify-center py-16 text-gray-400">
             <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
               <ClipboardDocumentListIcon class="w-8 h-8 text-gray-300" />
             </div>
             <p class="font-medium text-gray-500 mb-1">No items yet</p>
-            <p class="text-sm">Add parts or labour charges above</p>
-          </div>
-
-          <!-- Table -->
-          <div v-else>
-            <div class="sticky top-0 flex items-center gap-2 px-6 py-2.5 bg-gray-100 border-b border-gray-200 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              <span class="w-20 shrink-0">Type</span>
-              <span class="flex-1">Description</span>
-              <span class="w-16 shrink-0 text-right">Qty</span>
-              <span class="w-28 shrink-0 text-right">Unit Price</span>
-              <span class="w-24 shrink-0 text-right">Discount</span>
-              <span class="w-28 shrink-0 text-right">Total</span>
-              <span class="w-8 shrink-0"></span>
-            </div>
-
-            <div v-for="item in card.items" :key="item.id"
-              class="flex items-center gap-2 px-6 py-4 bg-white border-b border-gray-100 hover:bg-blue-50/30 transition-colors">
-              <span class="w-20 shrink-0">
-                <span :class="{
-                  'bg-blue-100 text-blue-700': item.type === 'part',
-                  'bg-green-100 text-green-700': item.type === 'labour',
-                  'bg-gray-100 text-gray-600': item.type === 'other',
-                }" class="badge capitalize text-xs">{{ item.type }}</span>
-              </span>
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-800 text-sm truncate">{{ item.description }}</p>
-                <p v-if="item.product" class="text-xs text-gray-400">SKU: {{ item.product.sku }}</p>
-              </div>
-              <span class="w-16 shrink-0 text-right text-sm text-gray-600">{{ item.quantity }}</span>
-              <span class="w-28 shrink-0 text-right text-sm text-gray-600">{{ lkr(item.unit_price) }}</span>
-              <span class="w-24 shrink-0 text-right text-sm text-red-400">
-                {{ item.discount > 0 ? `−${lkr(item.discount)}` : '—' }}
-              </span>
-              <span class="w-28 shrink-0 text-right font-bold text-blue-700 text-sm">LKR {{ lkr(item.total) }}</span>
-              <div class="w-8 shrink-0 flex justify-end">
-                <button v-if="!['completed','delivered','cancelled'].includes(card.status)"
-                  @click="removeItem(item)"
-                  class="p-1.5 rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-500 transition-colors">
-                  <TrashIcon class="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            <p class="text-sm">Search for a part or type a description above</p>
           </div>
         </div>
 
@@ -443,7 +446,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import axios from 'axios'
 import {
@@ -490,12 +493,31 @@ const editForm = reactive({
 })
 
 // Product search
-const employees      = ref([])
-const productSearch  = ref('')
-const showProductDd  = ref(false)
-const productResults = ref([])
-const productLoading = ref(false)
+const employees        = ref([])
+const productSearch    = ref('')
+const showProductDd    = ref(false)
+const productResults   = ref([])
+const productLoading   = ref(false)
+const productDdIndex   = ref(-1)
+const itemSearchContainer = ref(null)
+const itemDdRef        = ref(null)
+const itemDdPos        = ref({ top: 0, left: 0, width: 0 })
+const itemDescRef      = ref(null)
+const itemQtyRef       = ref(null)
+const itemPriceRef     = ref(null)
+const itemDiscRef      = ref(null)
 let productTimer = null
+
+function updateItemDdPos() {
+  const el = itemSearchContainer.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  itemDdPos.value = { top: rect.bottom + 4, left: rect.left, width: rect.width }
+}
+
+function onProductFocus() {
+  if (productSearch.value.trim()) { updateItemDdPos(); showProductDd.value = true }
+}
 
 function onProductInput() {
   itemForm.product_id  = null
@@ -507,12 +529,31 @@ function onProductInput() {
   productLoading.value = true
   productTimer = setTimeout(async () => {
     try {
+      updateItemDdPos()
       const { data } = await axios.get('/api/products', { params: { search: q, per_page: 10 } })
       productResults.value = data.data ?? data
+      productDdIndex.value = -1
     } finally {
       productLoading.value = false
     }
   }, 300)
+}
+
+function onItemArrow(dir) {
+  if (!showProductDd.value || !productResults.value.length) return
+  productDdIndex.value = Math.max(0, Math.min(productResults.value.length - 1, productDdIndex.value + dir))
+  nextTick(() => {
+    const rows = itemDdRef.value?.querySelectorAll('button')
+    rows?.[productDdIndex.value]?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+function onItemEnter() {
+  if (showProductDd.value && productDdIndex.value >= 0 && productResults.value[productDdIndex.value]) {
+    selectProduct(productResults.value[productDdIndex.value])
+  } else if (!showProductDd.value) {
+    itemQtyRef.value?.focus()
+  }
 }
 
 const itemForm = reactive({
@@ -535,8 +576,11 @@ function selectProduct(p) {
   itemForm.product_id  = p.id
   itemForm.description = p.name
   itemForm.unit_price  = p.selling_price
-  productSearch.value  = p.name
+  productSearch.value  = p.part_number || p.name
   showProductDd.value  = false
+  productResults.value = []
+  productDdIndex.value = -1
+  nextTick(() => itemQtyRef.value?.focus())
 }
 
 async function load() {
@@ -562,6 +606,8 @@ async function addItem() {
     Object.assign(itemForm, { type: 'part', description: '', product_id: null, quantity: 1, unit_price: 0, discount: 0 })
     productSearch.value  = ''
     productResults.value = []
+    productDdIndex.value = -1
+    nextTick(() => itemDescRef.value?.focus())
   } catch (e) {
     itemError.value = e.response?.data?.message ?? 'Failed to add item'
   } finally { addingItem.value = false }

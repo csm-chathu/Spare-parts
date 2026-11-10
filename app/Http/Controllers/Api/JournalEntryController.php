@@ -18,8 +18,8 @@ class JournalEntryController extends Controller
             ->when($request->to,     fn($q, $v) => $q->where('entry_date', '<=', $v))
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
             ->when($request->search, fn($q, $s) => $q->where(function ($inner) use ($s) {
-                $inner->where('entry_number', 'like', "%$s%")
-                      ->orWhere('description', 'like', "%$s%");
+                $inner->whereRaw('MATCH(description) AGAINST(? IN BOOLEAN MODE)', ["$s*"])
+                      ->orWhere('entry_number', 'like', "$s%");
             }))
             ->withCount('lines')
             ->withSum('lines', 'debit')

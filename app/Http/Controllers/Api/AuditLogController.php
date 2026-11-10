@@ -15,7 +15,7 @@ class AuditLogController extends Controller
         }
 
         $logs = AuditLog::with('user:id,name')
-            ->when($request->action, fn($q, $a) => $q->where('action', 'like', "%$a%"))
+            ->when($request->action, fn($q, $a) => $q->whereRaw('MATCH(action) AGAINST(? IN BOOLEAN MODE)', ["$a*"]))
             ->when($request->date_from, fn($q, $d) => $q->whereDate('created_at', '>=', $d))
             ->when($request->date_to, fn($q, $d) => $q->whereDate('created_at', '<=', $d))
             ->when($request->user_id, fn($q, $u) => $q->where('user_id', $u))

@@ -13,7 +13,8 @@ class AccountController extends Controller
         return Account::with('parent:id,code,name')
             ->when($request->type,   fn($q, $t) => $q->where('type', $t))
             ->when($request->search, fn($q, $s) => $q->where(function ($inner) use ($s) {
-                $inner->where('code', 'like', "%$s%")->orWhere('name', 'like', "%$s%");
+                $inner->whereRaw('MATCH(name) AGAINST(? IN BOOLEAN MODE)', ["$s*"])
+                      ->orWhere('code', 'like', "$s%");
             }))
             ->orderBy('code')
             ->get();

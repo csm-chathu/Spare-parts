@@ -23,10 +23,8 @@ class JobCardController extends Controller
         $cards = JobCard::with(['customer:id,name,phone', 'createdBy:id,name'])
             ->when($request->search, fn($q, $s) =>
                 $q->where(fn($i) =>
-                    $i->where('card_number', 'like', "%$s%")
-                      ->orWhere('customer_name', 'like', "%$s%")
-                      ->orWhere('vehicle_number', 'like', "%$s%")
-                      ->orWhere('customer_phone', 'like', "%$s%")
+                    $i->whereRaw('MATCH(customer_name, vehicle_number, customer_phone) AGAINST(? IN BOOLEAN MODE)', ["$s*"])
+                      ->orWhere('card_number', 'like', "$s%")
                 ))
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
             ->when($request->date_from, fn($q, $v) => $q->whereDate('created_at', '>=', $v))

@@ -26,10 +26,10 @@ class SaleController extends Controller
         $sales = Sale::with(['customer:id,name,phone,vehicle_number', 'user:id,name', 'journalEntry:id,entry_number'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where(function ($q) use ($s) {
-                $q->where('invoice_number', 'like', "%$s%")
-                  ->orWhereHas('customer', fn($cq) => $cq->where('name', 'like', "%$s%")
-                      ->orWhere('vehicle_number', 'like', "%$s%")
-                      ->orWhere('phone', 'like', "%$s%"));
+                $q->where('invoice_number', 'like', "$s%")
+                  ->orWhereHas('customer', fn($cq) =>
+                      $cq->whereRaw('MATCH(name, phone, vehicle_number) AGAINST(? IN BOOLEAN MODE)', ["$s*"])
+                  );
             }))
             ->when(request('customer_id'), fn($q, $c) => $q->where('customer_id', $c))
             ->when($statusFilter === 'draft', fn($q) => $q->where('is_draft', true))

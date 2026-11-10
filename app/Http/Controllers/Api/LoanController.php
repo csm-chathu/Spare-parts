@@ -22,8 +22,8 @@ class LoanController extends Controller
             ->where('source', $source)
             ->when($request->status, fn($q, $v) => $q->where('status', $v))
             ->when($request->search, fn($q, $v) => $q->where(function ($x) use ($v) {
-                $x->where('loan_number', 'like', "%{$v}%")
-                    ->orWhere('lender_name', 'like', "%{$v}%");
+                $x->whereRaw('MATCH(lender_name) AGAINST(? IN BOOLEAN MODE)', ["{$v}*"])
+                    ->orWhere('loan_number', 'like', "{$v}%");
             }))
             ->orderByDesc('start_date')
             ->paginate(20);

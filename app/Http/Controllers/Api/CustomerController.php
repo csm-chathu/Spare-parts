@@ -14,9 +14,8 @@ class CustomerController extends Controller
         $customers = Customer::withCount('sales')
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
             ->when(request('search'), fn($q, $s) => $q->where(function ($inner) use ($s) {
-                $inner->where('name', 'like', "%$s%")
-                    ->orWhere('phone', 'like', "%$s%")
-                    ->orWhere('email', 'like', "%$s%");
+                $inner->whereRaw('MATCH(name, phone, vehicle_number) AGAINST(? IN BOOLEAN MODE)', ["$s*"])
+                    ->orWhere('email', 'like', "$s%");
             }))
             ->latest()
             ->paginate(request('per_page', 20));

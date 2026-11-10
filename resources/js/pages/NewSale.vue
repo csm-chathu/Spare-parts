@@ -23,82 +23,6 @@
       <!-- ═══ LEFT: Cart ═══ -->
       <div class="flex-1 flex flex-col min-w-0 bg-white">
 
-        <!-- ADD ITEM bar -->
-        <div class="px-5 py-3 border-b border-gray-200 shrink-0 bg-gray-50 overflow-x-auto">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <PlusCircleIcon class="w-3.5 h-3.5" /> Add Item
-          </p>
-          <div class="flex items-end gap-2 min-w-max">
-            <!-- Type -->
-            <div class="w-28 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
-              <select v-model="newItem.type" class="form-input text-sm" @change="onNewItemTypeChange">
-                <option value="part">Part</option>
-                <option value="labour">Labour</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <!-- Description / product search -->
-            <div class="relative flex-1 min-w-48">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Description</label>
-              <input v-if="newItem.type !== 'part'" v-model="newItem.description"
-                class="form-input text-sm" placeholder="e.g. Engine oil change" />
-              <div v-else class="relative">
-                <input v-model="newItemSearch" class="form-input text-sm" placeholder="Search part name or SKU…"
-                  @input="onNewItemInput"
-                  @focus="showNewItemDd = !!newItemSearch.trim()"
-                  @keydown.esc="showNewItemDd = false" />
-                <div v-if="showNewItemDd" class="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
-                  <div v-if="newItemLoading" class="px-3 py-3 text-sm text-gray-400 text-center">Searching…</div>
-                  <button v-for="p in newItemResults" :key="p.id" type="button"
-                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
-                    @mousedown.prevent="pickNewItemProduct(p)">
-                    <div class="min-w-0 flex-1">
-                      <p class="text-sm font-semibold text-gray-800 truncate">{{ p.part_number || p.name }}</p>
-                      <p class="text-[11px] text-gray-400">{{ p.name }} · Stock: {{ p.stock_quantity }}</p>
-                    </div>
-                    <span class="font-bold text-blue-700 text-sm shrink-0">LKR {{ Number(p.selling_price).toLocaleString() }}</span>
-                  </button>
-                  <div v-if="!newItemLoading && !newItemResults.length" class="px-3 py-3 text-sm text-gray-400 text-center">No parts found</div>
-                </div>
-              </div>
-            </div>
-            <!-- Qty -->
-            <div class="w-14 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Qty</label>
-              <input v-model.number="newItem.quantity" type="number" min="1" step="1"
-                @focus="$event.target.select()" class="form-input text-sm text-center" />
-            </div>
-            <!-- Unit Price -->
-            <div class="w-24 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Unit Price</label>
-              <input v-model.number="newItem.unit_price" type="number" min="0" step="1"
-                @focus="$event.target.select()" class="form-input text-sm" />
-            </div>
-            <!-- Discount -->
-            <div class="w-20 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Discount</label>
-              <input v-model.number="newItem.discount" type="number" min="0" step="1"
-                @focus="$event.target.select()" class="form-input text-sm" />
-            </div>
-            <!-- Line total -->
-            <div class="w-28 shrink-0">
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Line Total</label>
-              <div class="form-input text-sm font-bold text-blue-700 bg-blue-50 border-blue-200 text-right">
-                LKR {{ lkr(Math.max(0, newItem.quantity * newItem.unit_price - (newItem.discount || 0))) }}
-              </div>
-            </div>
-            <!-- Add button -->
-            <button @click="addNewItem"
-              class="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors">
-              <PlusIcon class="w-4 h-4" /> Add
-            </button>
-          </div>
-          <p v-if="addItemError" class="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ addItemError }}
-          </p>
-        </div>
-
         <!-- Items table -->
         <div class="flex-1 overflow-y-auto">
 
@@ -111,16 +35,6 @@
             <span class="w-24 shrink-0 text-right">Discount</span>
             <span class="w-28 shrink-0 text-right">Total</span>
             <span class="w-8 shrink-0"></span>
-          </div>
-
-          <!-- Empty state -->
-          <div v-if="!form.items.length"
-            class="flex flex-col items-center justify-center h-full text-gray-400">
-            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
-              <ShoppingCartIcon class="w-8 h-8 text-gray-300" />
-            </div>
-            <p class="font-medium text-gray-500 mb-1">Cart is empty</p>
-            <p class="text-sm">Add items using the form above</p>
           </div>
 
           <!-- Item rows -->
@@ -164,6 +78,99 @@
               <TrashIcon class="w-4 h-4" />
             </button>
           </div>
+
+          <!-- ── Inline add row ── -->
+          <div class="flex items-center px-5 py-2 border-b border-dashed border-blue-200 bg-blue-50/40">
+            <!-- Type -->
+            <div class="w-16 shrink-0 pr-1">
+              <select v-model="newItem.type" class="form-input text-xs py-1 px-1.5" @change="onNewItemTypeChange">
+                <option value="part">Part</option>
+                <option value="labour">Labour</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <!-- Description / search -->
+            <div class="flex-1 min-w-0 px-1" ref="newItemSearchContainer">
+              <input v-if="newItem.type !== 'part'" v-model="newItem.description"
+                ref="newItemDescRef"
+                class="form-input text-sm w-full" placeholder="Description…"
+                @keydown.enter.prevent="newItemQtyRef?.focus()" />
+              <input v-else v-model="newItemSearch"
+                ref="newItemDescRef"
+                class="form-input text-sm w-full" placeholder="Search part name or SKU…"
+                @input="onNewItemInput"
+                @focus="onNewItemFocus"
+                @keydown.esc="showNewItemDd = false; newItemDdIndex = -1"
+                @keydown.enter.prevent="onNewItemEnter"
+                @keydown.arrow-down.prevent="onNewItemArrow(1)"
+                @keydown.arrow-up.prevent="onNewItemArrow(-1)" />
+              <Teleport to="body">
+                <div v-if="showNewItemDd && newItemDdPos.width" ref="newItemDdRef"
+                  class="fixed z-[9999] max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl"
+                  :style="{ top: newItemDdPos.top + 'px', left: newItemDdPos.left + 'px', width: newItemDdPos.width + 'px' }">
+                  <div v-if="newItemLoading" class="px-3 py-3 text-sm text-gray-400 text-center">Searching…</div>
+                  <button v-for="(p, idx) in newItemResults" :key="p.id" type="button"
+                    class="flex w-full items-center gap-3 px-3 py-2.5 text-left border-b border-gray-100 last:border-b-0 transition-colors"
+                    :class="idx === newItemDdIndex ? 'bg-blue-100 text-blue-800' : 'hover:bg-blue-50 text-gray-700'"
+                    @mousedown.prevent="pickNewItemProduct(p)"
+                    @mousemove="newItemDdIndex = idx">
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-semibold truncate">{{ p.part_number || p.name }}</p>
+                      <p class="text-[11px] text-gray-400">{{ p.name }} · Stock: {{ p.stock_quantity }}</p>
+                    </div>
+                    <span class="font-bold text-blue-700 text-sm shrink-0">LKR {{ Number(p.selling_price).toLocaleString() }}</span>
+                  </button>
+                  <div v-if="!newItemLoading && !newItemResults.length" class="px-3 py-3 text-sm text-gray-400 text-center">No parts found</div>
+                </div>
+              </Teleport>
+            </div>
+            <!-- Qty -->
+            <div class="w-24 shrink-0 px-1">
+              <input v-model.number="newItem.quantity" type="number" min="1" step="1"
+                ref="newItemQtyRef"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="newItemPriceRef?.focus()"
+                class="form-input text-sm text-center w-full" />
+            </div>
+            <!-- Unit price -->
+            <div class="w-28 shrink-0 px-1">
+              <input v-model.number="newItem.unit_price" type="number" min="0" step="1"
+                ref="newItemPriceRef"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="newItemDiscRef?.focus()"
+                class="form-input text-sm text-right w-full" />
+            </div>
+            <!-- Discount -->
+            <div class="w-24 shrink-0 px-1">
+              <input v-model.number="newItem.discount" type="number" min="0" step="1"
+                ref="newItemDiscRef"
+                @focus="$event.target.select()"
+                @keydown.enter.prevent="addNewItem"
+                class="form-input text-sm text-right w-full" />
+            </div>
+            <!-- Line total -->
+            <div class="w-28 shrink-0 text-right text-sm font-bold text-blue-700 px-1">
+              LKR {{ lkr(Math.max(0, newItem.quantity * newItem.unit_price - (newItem.discount || 0))) }}
+            </div>
+            <!-- Add button -->
+            <button @click="addNewItem"
+              class="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shrink-0">
+              <PlusIcon class="w-4 h-4" />
+            </button>
+          </div>
+          <p v-if="addItemError" class="px-5 py-1.5 text-xs text-red-600 flex items-center gap-1 bg-red-50">
+            <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" /> {{ addItemError }}
+          </p>
+
+          <!-- Empty state -->
+          <div v-if="!form.items.length"
+            class="flex flex-col items-center justify-center py-16 text-gray-400">
+            <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+              <ShoppingCartIcon class="w-8 h-8 text-gray-300" />
+            </div>
+            <p class="font-medium text-gray-500 mb-1">Cart is empty</p>
+            <p class="text-sm">Search for a part or type a description above</p>
+          </div>
         </div>
 
         <!-- Notes bar -->
@@ -176,7 +183,7 @@
           </div>
         </div>
 
-        <!-- Pinned Order Summary (indigo, matches Job Card total bar) -->
+        <!-- Pinned Order Summary -->
         <div class="shrink-0 text-white">
           <!-- Breakdown row -->
           <div class="flex items-center gap-6 px-6 py-3 bg-indigo-950 text-sm flex-wrap">
@@ -343,12 +350,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import SearchableSelect from '@/components/SearchableSelect.vue'
 import {
-  ArrowLeftIcon, PlusIcon, PlusCircleIcon, TrashIcon,
+  ArrowLeftIcon, PlusIcon, TrashIcon,
   ShoppingCartIcon, UserIcon, UserPlusIcon, CreditCardIcon, CalculatorIcon,
   CheckCircleIcon, ArrowPathIcon,
   ExclamationTriangleIcon, ChatBubbleLeftIcon,
@@ -370,14 +377,54 @@ const newCustomerError = ref('')
 const newCustomer      = reactive({ name: '', phone: '', vehicle_number: '' })
 
 // ADD ITEM bar state
-const newItemSearch    = ref('')
-const showNewItemDd    = ref(false)
-const newItemResults   = ref([])
-const newItemLoading   = ref(false)
-const selectedProduct  = ref(null)
-const addItemError     = ref('')
+const newItemSearch        = ref('')
+const showNewItemDd        = ref(false)
+const newItemResults       = ref([])
+const newItemLoading       = ref(false)
+const selectedProduct      = ref(null)
+const newItemSearchContainer = ref(null)
+const newItemDdPos         = ref({ top: 0, left: 0, width: 0 })
+const newItemDescRef       = ref(null)
+const newItemQtyRef        = ref(null)
+const newItemPriceRef      = ref(null)
+const newItemDiscRef       = ref(null)
+const newItemDdRef         = ref(null)
+const newItemDdIndex       = ref(-1)
+const addItemError         = ref('')
 const newItem = reactive({ type: 'part', description: '', product_id: '', quantity: 1, unit_price: 0, discount: 0 })
 let newItemTimer = null
+
+function updateNewItemDdPos() {
+  const el = newItemSearchContainer.value
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  newItemDdPos.value = { top: rect.bottom + 4, left: rect.left, width: rect.width }
+}
+
+function onNewItemFocus() {
+  if (newItemSearch.value.trim()) {
+    updateNewItemDdPos()
+    showNewItemDd.value = true
+  }
+}
+
+function onNewItemArrow(dir) {
+  if (!showNewItemDd.value || !newItemResults.value.length) return
+  newItemDdIndex.value = Math.max(0, Math.min(newItemResults.value.length - 1, newItemDdIndex.value + dir))
+  // scroll highlighted row into view
+  nextTick(() => {
+    const rows = newItemDdRef.value?.querySelectorAll('button')
+    rows?.[newItemDdIndex.value]?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+function onNewItemEnter() {
+  if (showNewItemDd.value && newItemDdIndex.value >= 0 && newItemResults.value[newItemDdIndex.value]) {
+    pickNewItemProduct(newItemResults.value[newItemDdIndex.value])
+  } else if (!showNewItemDd.value) {
+    newItemQtyRef.value?.focus()
+  }
+}
 
 function onNewItemInput() {
   newItem.product_id  = ''
@@ -386,12 +433,14 @@ function onNewItemInput() {
   clearTimeout(newItemTimer)
   const q = newItemSearch.value.trim()
   if (!q) { showNewItemDd.value = false; newItemResults.value = []; return }
+  updateNewItemDdPos()
   showNewItemDd.value  = true
   newItemLoading.value = true
   newItemTimer = setTimeout(async () => {
     try {
       const { data } = await axios.get('/api/products', { params: { search: q, per_page: 20 } })
       newItemResults.value = data.data ?? data
+      newItemDdIndex.value = -1
     } finally {
       newItemLoading.value = false
     }
@@ -415,9 +464,10 @@ function pickNewItemProduct(p) {
   newItem.product_id  = p.id
   newItem.description = p.name
   newItem.unit_price  = p.selling_price
-  newItemSearch.value = p.part_number || p.name
-  showNewItemDd.value = false
+  newItemSearch.value  = p.part_number || p.name
+  showNewItemDd.value  = false
   newItemResults.value = []
+  nextTick(() => newItemQtyRef.value?.focus())
 }
 
 function addNewItem() {
@@ -453,10 +503,12 @@ function addNewItem() {
   newItem.unit_price  = 0
   newItem.discount    = 0
   newItem.quantity    = 1
-  newItemSearch.value  = ''
-  newItemResults.value = []
+  newItemSearch.value   = ''
+  newItemResults.value  = []
   selectedProduct.value = null
-  showNewItemDd.value  = false
+  showNewItemDd.value   = false
+  newItemDdIndex.value  = -1
+  nextTick(() => newItemDescRef.value?.focus())
 }
 
 const form = reactive({

@@ -13,10 +13,8 @@ class EmployeeController extends Controller
     {
         return Employee::with('branch:id,name,code')
             ->when($request->search, fn($q, $s) => $q->where(function ($inner) use ($s) {
-                $inner->where('name', 'like', "%$s%")
-                      ->orWhere('employee_number', 'like', "%$s%")
-                      ->orWhere('designation', 'like', "%$s%")
-                      ->orWhere('department', 'like', "%$s%");
+                $inner->whereRaw('MATCH(name, designation, department) AGAINST(? IN BOOLEAN MODE)', ["$s*"])
+                      ->orWhere('employee_number', 'like', "$s%");
             }))
             ->when($request->department, fn($q, $d) => $q->where('department', $d))
             ->when(isset($request->is_active), fn($q) => $q->where('is_active', $request->boolean('is_active')))

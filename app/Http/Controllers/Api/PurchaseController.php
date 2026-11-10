@@ -20,7 +20,7 @@ class PurchaseController extends Controller
         $user = request()->user();
         $purchases = Purchase::with(['supplier:id,name', 'user:id,name', 'journalEntry:id,entry_number', 'items.product:id,name'])
             ->when(!$user->isAdmin(), fn($q) => $q->where('branch_id', $user->branch_id))
-            ->when(request('search'), fn($q, $s) => $q->where('purchase_number', 'like', "%$s%"))
+            ->when(request('search'), fn($q, $s) => $q->where('purchase_number', 'like', "$s%"))
             ->when(request('supplier_id'), fn($q, $s) => $q->where('supplier_id', $s))
             ->when(request('status'), fn($q, $s) => $q->where('status', $s))
             ->when(request('statuses'), fn($q, $s) => $q->whereIn('status', (array) $s))
