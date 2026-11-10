@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class MigrateTenants extends Command
 {
-    protected $signature   = 'migrate:tenants {--fresh : Drop all tables and re-run migrations} {--seed : Seed after migrating}';
+    protected $signature   = 'migrate:tenants {--fresh : Drop all tables and re-run migrations} {--seed : Seed after migrating} {--tenant= : Only migrate this tenant host (e.g. hero-spare.lumac.cc)}';
     protected $description = 'Run migrations against every tenant database defined in config/tenants.php';
 
     public function handle(): int
@@ -26,7 +26,14 @@ class MigrateTenants extends Command
             return 0;
         }
 
+        $only = $this->option('tenant');
+        if ($only && !isset($tenants[$only])) {
+            $this->error("Tenant '{$only}' not found in config/tenants.php");
+            return 1;
+        }
+
         foreach ($tenants as $host => $tenant) {
+            if ($only && $host !== $only) continue;
             $db = $tenant['db_database'];
             $this->info("── Migrating tenant: {$host} (database: {$db})");
 
