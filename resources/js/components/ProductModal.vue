@@ -74,15 +74,15 @@
             <div class="space-y-4">
               <p class="text-xs font-bold text-gray-400 uppercase tracking-wider">Vehicle</p>
               <div>
-                <label class="form-label">Vehicle Type</label>
+                <label class="form-label">Vehicle Type *</label>
                 <SearchableSelect v-model="form.vehicle_type_id" :options="vehicleTypes" placeholder="Search vehicle type…" @update:modelValue="onVehicleTypeChange" />
               </div>
               <div>
-                <label class="form-label">Brand</label>
+                <label class="form-label">Brand *</label>
                 <SearchableSelect v-model="form.brand_id" :options="filteredBrands" placeholder="Search brand…" @update:modelValue="onBrandChange" />
               </div>
               <div>
-                <label class="form-label">Vehicle Model</label>
+                <label class="form-label">Vehicle Model *</label>
                 <SearchableSelect v-model="form.model_id" :options="filteredModels" placeholder="Search model…" />
               </div>
             </div>
@@ -95,15 +95,15 @@
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div>
-                  <label class="form-label"><span class="text-red-500 mr-0.5">*</span> Purchase Price (LKR)</label>
+                  <label class="form-label"><span class="text-red-500 mr-0.5">*</span> Purchase Price (LKR)*</label>
                   <input v-model="form.purchase_price" type="number" step="0.01" min="0" required class="form-input" />
                 </div>
                 <div>
-                  <label class="form-label"><span class="text-red-500 mr-0.5">*</span> Selling Price (LKR)</label>
+                  <label class="form-label"><span class="text-red-500 mr-0.5">*</span> Selling Price (LKR)*</label>
                   <input v-model="form.selling_price" type="number" step="0.01" min="0" required class="form-input" />
                 </div>
                 <div>
-                  <label class="form-label"><span class="text-red-500 mr-0.5">*</span> Stock Quantity</label>
+                  <label class="form-label"><span class="text-red-500 mr-0.5">*</span> Stock Quantity *</label>
                   <input v-model="form.stock_quantity" type="number" min="0" required class="form-input" />
                 </div>
                 <div>

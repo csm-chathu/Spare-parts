@@ -17,6 +17,7 @@
             <th class="table-th">Actions</th>
           </tr>
         </thead>
+
         <tbody class="divide-y divide-gray-100">
           <tr v-for="c in categories.data" :key="c.id" class="hover:bg-gray-50">
             <td class="table-td font-medium">{{ c.name }}</td>
@@ -45,7 +46,7 @@
       </table>
     </div>
 
-    <!-- Inline modal -->
+    <!-- Inline modal new-->
     <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
         <h3 class="text-lg font-semibold mb-4">{{ editing ? 'Edit' : 'Add' }} Category</h3>
